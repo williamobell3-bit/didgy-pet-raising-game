@@ -18,9 +18,12 @@
       from { transform: scale(0.5) translateX(-50%); opacity: 0; }
       to   { transform: translateX(-50%) scale(1); opacity: 1; }
     }
-    @keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
-    @keyframes wiggle { 0%,100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
-    @keyframes fadeIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: none; } }
+    @keyframes bounce  { 0%,100% { transform:translateY(0);    } 50% { transform:translateY(-12px); } }
+    @keyframes wiggle  { 0%,100% { transform:rotate(-3deg);    } 50% { transform:rotate(3deg);      } }
+    @keyframes fadeIn  { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+    @keyframes pulse   { 0%,100% { box-shadow:0 0 0 0 rgba(239,68,68,0.7); } 70% { box-shadow:0 0 0 10px rgba(239,68,68,0); } }
+    @keyframes itGlow  { 0%,100% { filter:drop-shadow(0 0 8px #EF4444); } 50% { filter:drop-shadow(0 0 20px #EF4444); } }
+    @keyframes float   { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-6px); } }
     button:active { transform: scale(0.93) !important; }
   </style>
 </head>
@@ -32,34 +35,30 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 
   <script type="text/babel">
-    const { useState, useEffect, useRef, useCallback } = React;
+    const { useState, useEffect, useRef } = React;
 
-    /* ═══════════════ STORAGE (localStorage) ═══════════════ */
-    const SAVE_KEY = "didgy_save_v1";
-    function saveGame(gs) {
-      try { localStorage.setItem(SAVE_KEY, JSON.stringify(gs)); } catch(e) {}
-    }
-    function loadGame() {
-      try { const s = localStorage.getItem(SAVE_KEY); return s ? JSON.parse(s) : null; } catch(e) { return null; }
-    }
+    /* ══ STORAGE ══ */
+    const SAVE_KEY = "didgy_save_v2";
+    function saveGame(gs)  { try { localStorage.setItem(SAVE_KEY, JSON.stringify(gs)); } catch(e) {} }
+    function loadGame()    { try { const s = localStorage.getItem(SAVE_KEY); return s ? JSON.parse(s) : null; } catch(e) { return null; } }
 
-    /* ═══════════════ GAME DATA ═══════════════ */
+    /* ══ GAME DATA ══ */
     const PETS = [
-      { id:"fluffball", name:"Fluffball", emoji:"🐱", color:"#FFB3C6", bg:"#FFF0F5", trick:"Backflip",      trickMsg:"Fluffball nails a perfect backflip! 🤸",              game:"catch",  gameName:"Yarn Catch",    uf:"tunaTreat",    unlockCost:0,   desc:"A soft, eternally purring cloud of fluff" },
-      { id:"wobble",    name:"Wobble",    emoji:"🐧", color:"#7EB8F7", bg:"#EFF7FF", trick:"Waddle Dance",  trickMsg:"Wobble busts out the most ridiculous waddle! 💃",    game:"tap",    gameName:"Ice Slide",     uf:"herring",      unlockCost:100, desc:"A round penguin who wobbles everywhere" },
-      { id:"sparky",    name:"Sparky",    emoji:"🐇", color:"#FFD700", bg:"#FFFCE8", trick:"Lightning Hop", trickMsg:"Sparky vanishes in a flash of electricity! ⚡",       game:"timing", gameName:"Zap Tag",       uf:"electroCarrot",unlockCost:150, desc:"An electric bunny crackling with energy" },
-      { id:"pebble",    name:"Pebble",    emoji:"🪨", color:"#B8A99A", bg:"#F5F0EC", trick:"Spin Roll",     trickMsg:"Pebble curls into a perfect spinning ball! 🌀",       game:"catch",  gameName:"Boulder Bowl",  uf:"crystalCrunch",unlockCost:200, desc:"A surprisingly cuddly rock creature" },
-      { id:"mochi",     name:"Mochi",     emoji:"🫧", color:"#F7A8D4", bg:"#FFF0FB", trick:"Big Stretch",   trickMsg:"Mochi stretches out five times its size! 🤲",         game:"tap",    gameName:"Bounce Bounce", uf:"sweetPaste",   unlockCost:200, desc:"A jiggly blob of pure squishiness" },
-      { id:"zippy",     name:"Zippy",     emoji:"🦊", color:"#FF8C42", bg:"#FFF5ED", trick:"Tail Spin",     trickMsg:"Zippy spins their tail like a helicopter! 🌪️",      game:"timing", gameName:"Hide & Seek",   uf:"wildBerries",  unlockCost:250, desc:"A tiny fox who never stops moving" },
-      { id:"drizzle",   name:"Drizzle",   emoji:"🌧️",color:"#81CFED", bg:"#EDF8FF", trick:"Rain Dance",    trickMsg:"Drizzle summons a tiny personal raincloud! 🌦️",     game:"catch",  gameName:"Cloud Hop",     uf:"dewDrops",     unlockCost:300, desc:"A cloud pet that leaves tiny puddles" },
-      { id:"ember",     name:"Ember",     emoji:"🦎", color:"#FF6B35", bg:"#FFF2EE", trick:"Flame Burst",   trickMsg:"Ember lets out a tiny adorable flame! 🔥",            game:"timing", gameName:"Hot Potato",    uf:"chiliPepper",  unlockCost:350, desc:"A fiery lizard with a warm heart" },
-      { id:"bubbles",   name:"Bubbles",   emoji:"🐠", color:"#4ECDC4", bg:"#EDFCFB", trick:"Bubble Burst",  trickMsg:"Bubbles makes a bubble the size of the room! 🫧",     game:"tap",    gameName:"Bubble Pop",    uf:"seaKelp",      unlockCost:350, desc:"An enthusiastic fish who loves making bubbles" },
-      { id:"noodle",    name:"Noodle",    emoji:"🐉", color:"#C084FC", bg:"#FAF0FF", trick:"Loop-De-Loop",  trickMsg:"Noodle ties themselves into a bow! 🔄",               game:"catch",  gameName:"Noodle Twist",  uf:"dragonRamen",  unlockCost:400, desc:"A long, wiggly dragon of infinite length" },
-      { id:"twig",      name:"Twig",      emoji:"🌱", color:"#6BCB77", bg:"#F0FBF1", trick:"Grow Tall",     trickMsg:"Twig shoots up to the ceiling in seconds! 🌳",        game:"timing", gameName:"Leaf Catch",    uf:"sunlightBar",  unlockCost:400, desc:"A cheerful sprout who loves sunny days" },
-      { id:"doodle",    name:"Doodle",    emoji:"🎨", color:"#FBBF24", bg:"#FFFBEB", trick:"Self Portrait",  trickMsg:"Doodle sketches a tiny perfect self portrait! ✏️",   game:"tap",    gameName:"Color Match",   uf:"inkDrop",      unlockCost:500, desc:"A creative creature made of paint and dreams" },
-      { id:"glimmer",   name:"Glimmer",   emoji:"⭐", color:"#F59E0B", bg:"#FFFDF0", trick:"Shooting Star",  trickMsg:"Glimmer streaks a trail of gold across the room! 💫",game:"catch",  gameName:"Star Connect",  uf:"stardust",     unlockCost:600, desc:"A genuine star who fell in love with Earth" },
-      { id:"bloop",     name:"Bloop",     emoji:"🐙", color:"#6097C4", bg:"#EEF5FF", trick:"Sonar Ping",    trickMsg:"Bloop sends ripples through the entire room! 📡",     game:"timing", gameName:"Deep Dive",     uf:"plankton",     unlockCost:700, desc:"A mysterious deep-sea blob of unknown origin" },
-      { id:"puff",      name:"Puff",      emoji:"🐑", color:"#A78BFA", bg:"#F5F0FF", trick:"Puffball Form",  trickMsg:"Puff inflates into an enormous fluffy sphere! 🌸",   game:"tap",    gameName:"Puff Collect",  uf:"cottonCandy",  unlockCost:800, desc:"The fluffiest being in the known universe" },
+      { id:"fluffball", name:"Fluffball", emoji:"🐱", color:"#FFB3C6", bg:"#FFF0F5", trick:"Backflip",      trickMsg:"Fluffball nails a perfect backflip! 🤸",               game:"catch",  gameName:"Yarn Catch",    uf:"tunaTreat",    unlockCost:0,   desc:"A soft, eternally purring cloud of fluff"    },
+      { id:"wobble",    name:"Wobble",    emoji:"🐧", color:"#7EB8F7", bg:"#EFF7FF", trick:"Waddle Dance",  trickMsg:"Wobble busts out the most ridiculous waddle! 💃",     game:"tap",    gameName:"Ice Slide",     uf:"herring",      unlockCost:100, desc:"A round penguin who wobbles everywhere"      },
+      { id:"sparky",    name:"Sparky",    emoji:"🐇", color:"#FFD700", bg:"#FFFCE8", trick:"Lightning Hop", trickMsg:"Sparky vanishes in a flash of electricity! ⚡",        game:"timing", gameName:"Zap Tag",       uf:"electroCarrot",unlockCost:150, desc:"An electric bunny crackling with energy"     },
+      { id:"pebble",    name:"Pebble",    emoji:"🪨", color:"#B8A99A", bg:"#F5F0EC", trick:"Spin Roll",     trickMsg:"Pebble curls into a perfect spinning ball! 🌀",        game:"catch",  gameName:"Boulder Bowl",  uf:"crystalCrunch",unlockCost:200, desc:"A surprisingly cuddly rock creature"         },
+      { id:"mochi",     name:"Mochi",     emoji:"🫧", color:"#F7A8D4", bg:"#FFF0FB", trick:"Big Stretch",   trickMsg:"Mochi stretches out five times its size! 🤲",          game:"tap",    gameName:"Bounce Bounce", uf:"sweetPaste",   unlockCost:200, desc:"A jiggly blob of pure squishiness"           },
+      { id:"zippy",     name:"Zippy",     emoji:"🦊", color:"#FF8C42", bg:"#FFF5ED", trick:"Tail Spin",     trickMsg:"Zippy spins their tail like a helicopter! 🌪️",       game:"timing", gameName:"Hide & Seek",   uf:"wildBerries",  unlockCost:250, desc:"A tiny fox who never stops moving"           },
+      { id:"drizzle",   name:"Drizzle",   emoji:"🌧️",color:"#81CFED", bg:"#EDF8FF", trick:"Rain Dance",    trickMsg:"Drizzle summons a tiny personal raincloud! 🌦️",      game:"catch",  gameName:"Cloud Hop",     uf:"dewDrops",     unlockCost:300, desc:"A cloud pet that leaves tiny puddles"        },
+      { id:"ember",     name:"Ember",     emoji:"🦎", color:"#FF6B35", bg:"#FFF2EE", trick:"Flame Burst",   trickMsg:"Ember lets out a tiny adorable flame! 🔥",             game:"timing", gameName:"Hot Potato",    uf:"chiliPepper",  unlockCost:350, desc:"A fiery lizard with a warm heart"            },
+      { id:"bubbles",   name:"Bubbles",   emoji:"🐠", color:"#4ECDC4", bg:"#EDFCFB", trick:"Bubble Burst",  trickMsg:"Bubbles makes a bubble the size of the room! 🫧",      game:"tap",    gameName:"Bubble Pop",    uf:"seaKelp",      unlockCost:350, desc:"An enthusiastic fish who loves making bubbles"},
+      { id:"noodle",    name:"Noodle",    emoji:"🐉", color:"#C084FC", bg:"#FAF0FF", trick:"Loop-De-Loop",  trickMsg:"Noodle ties themselves into a bow! 🔄",                game:"catch",  gameName:"Noodle Twist",  uf:"dragonRamen",  unlockCost:400, desc:"A long, wiggly dragon of infinite length"   },
+      { id:"twig",      name:"Twig",      emoji:"🌱", color:"#6BCB77", bg:"#F0FBF1", trick:"Grow Tall",     trickMsg:"Twig shoots up to the ceiling in seconds! 🌳",         game:"timing", gameName:"Leaf Catch",    uf:"sunlightBar",  unlockCost:400, desc:"A cheerful sprout who loves sunny days"     },
+      { id:"doodle",    name:"Doodle",    emoji:"🎨", color:"#FBBF24", bg:"#FFFBEB", trick:"Self Portrait",  trickMsg:"Doodle sketches a tiny perfect self portrait! ✏️",    game:"tap",    gameName:"Color Match",   uf:"inkDrop",      unlockCost:500, desc:"A creative creature made of paint and dreams"},
+      { id:"glimmer",   name:"Glimmer",   emoji:"⭐", color:"#F59E0B", bg:"#FFFDF0", trick:"Shooting Star",  trickMsg:"Glimmer streaks a trail of gold across the room! 💫", game:"catch",  gameName:"Star Connect",  uf:"stardust",     unlockCost:600, desc:"A genuine star who fell in love with Earth"  },
+      { id:"bloop",     name:"Bloop",     emoji:"🐙", color:"#6097C4", bg:"#EEF5FF", trick:"Sonar Ping",    trickMsg:"Bloop sends ripples through the entire room! 📡",      game:"timing", gameName:"Deep Dive",     uf:"plankton",     unlockCost:700, desc:"A mysterious deep-sea blob of unknown origin"},
+      { id:"puff",      name:"Puff",      emoji:"🐑", color:"#A78BFA", bg:"#F5F0FF", trick:"Puffball Form",  trickMsg:"Puff inflates into an enormous fluffy sphere! 🌸",    game:"tap",    gameName:"Puff Collect",  uf:"cottonCandy",  unlockCost:800, desc:"The fluffiest being in the known universe"   },
     ];
 
     const UNIQUE_FOODS = {
@@ -81,24 +80,24 @@
     };
 
     const COMMON_FOODS = [
-      { id:"kibble",  emoji:"🥣", name:"Basic Kibble",  n:20, h: 5, price:0,  unlock:0,   desc:"Simple but filling" },
-      { id:"biscuit", emoji:"🍪", name:"Yummy Biscuit", n:30, h:15, price:5,  unlock:50,  desc:"A tasty little treat" },
-      { id:"fruit",   emoji:"🍎", name:"Fruit Bowl",    n:40, h:20, price:8,  unlock:100, desc:"Fresh and healthy!" },
-      { id:"gourmet", emoji:"🍽️",name:"Gourmet Meal",  n:60, h:35, price:15, unlock:250, desc:"Restaurant-quality dining" },
+      { id:"kibble",  emoji:"🥣", name:"Basic Kibble",  n:20, h: 5, price:0,  unlock:0,   desc:"Simple but filling"           },
+      { id:"biscuit", emoji:"🍪", name:"Yummy Biscuit", n:30, h:15, price:5,  unlock:50,  desc:"A tasty little treat"         },
+      { id:"fruit",   emoji:"🍎", name:"Fruit Bowl",    n:40, h:20, price:8,  unlock:100, desc:"Fresh and healthy!"           },
+      { id:"gourmet", emoji:"🍽️",name:"Gourmet Meal",  n:60, h:35, price:15, unlock:250, desc:"Restaurant-quality dining"    },
       { id:"magic",   emoji:"🌈", name:"Magic Treat",   n:80, h:50, price:25, unlock:500, desc:"Pure enchanted deliciousness" },
     ];
 
     const HOUSES = [
-      { id:"den",    emoji:"🏠", name:"Cozy Den",       bg:"linear-gradient(135deg,#FFF8F0,#FFE8D5)", hb: 0, desc:"A warm and simple home",           unlock:0    },
-      { id:"cottage",emoji:"🏡", name:"Flower Cottage", bg:"linear-gradient(135deg,#FFF0F5,#FFE0EE)", hb: 5, desc:"Surrounded by blooming flowers",   unlock:150  },
-      { id:"tree",   emoji:"🌳", name:"Treehouse",      bg:"linear-gradient(135deg,#F0FBF0,#DCFFE0)", hb:10, desc:"High up among rustling leaves",    unlock:300  },
-      { id:"castle", emoji:"🏰", name:"Mini Castle",    bg:"linear-gradient(135deg,#F5F0FF,#EAE0FF)", hb:20, desc:"Fit for a royal little pet!",      unlock:600  },
-      { id:"palace", emoji:"✨", name:"Cloud Palace",   bg:"linear-gradient(135deg,#F0F8FF,#E0EFFF)", hb:35, desc:"Floating above the clouds forever", unlock:1000 },
+      { id:"den",    emoji:"🏠", name:"Cozy Den",       bg:"linear-gradient(135deg,#FFF8F0,#FFE8D5)", hb: 0, desc:"A warm and simple home",            unlock:0    },
+      { id:"cottage",emoji:"🏡", name:"Flower Cottage", bg:"linear-gradient(135deg,#FFF0F5,#FFE0EE)", hb: 5, desc:"Surrounded by blooming flowers",    unlock:150  },
+      { id:"tree",   emoji:"🌳", name:"Treehouse",      bg:"linear-gradient(135deg,#F0FBF0,#DCFFE0)", hb:10, desc:"High up among rustling leaves",      unlock:300  },
+      { id:"castle", emoji:"🏰", name:"Mini Castle",    bg:"linear-gradient(135deg,#F5F0FF,#EAE0FF)", hb:20, desc:"Fit for a royal little pet!",        unlock:600  },
+      { id:"palace", emoji:"✨", name:"Cloud Palace",   bg:"linear-gradient(135deg,#F0F8FF,#E0EFFF)", hb:35, desc:"Floating above the clouds forever",  unlock:1000 },
     ];
 
     const AGE_STAGES = [
-      { name:"Baby",  min:0,  max:5,   size:"5rem" },
-      { name:"Young", min:5,  max:15,  size:"6rem" },
+      { name:"Baby",  min:0,  max:5,   size:"5rem"               },
+      { name:"Young", min:5,  max:15,  size:"6rem"               },
       { name:"Adult", min:15, max:30,  size:"7rem", sparkle:true },
       { name:"Elder", min:30, max:999, size:"7rem", sparkle:true },
     ];
@@ -107,30 +106,29 @@
 
     function freshPet(id, type) {
       const pd = PETS.find(p => p.id === type);
-      return { id, type, name: pd.name, age:0, health:100, happiness:80, hunger:100, lastDecay: Date.now() };
+      return { id, type, name:pd.name, age:0, health:100, happiness:80, hunger:100, lastDecay:Date.now() };
     }
 
     const INIT_STATE = {
-      coins: 40, nextId: 2, currentHouse: "den",
-      unlockedPetTypes: ["fluffball"], unlockedFoods: ["kibble"], unlockedHouses: ["den"],
-      activePetId: "p1",
-      pets: [freshPet("p1","fluffball")],
+      coins:40, nextId:2, currentHouse:"den",
+      unlockedPetTypes:["fluffball"], unlockedFoods:["kibble"], unlockedHouses:["den"],
+      activePetId:"p1",
+      pets:[freshPet("p1","fluffball")],
     };
 
-    /* ═══════════════ OFFLINE DECAY ═══════════════ */
-    function applyDecay(pets, currentHouse, now) {
+    /* ══ DECAY — active pet only, tab-visible only ══ */
+    function decayPet(p, currentHouse) {
       const house = HOUSES.find(h => h.id === currentHouse) || HOUSES[0];
-      return pets.map(p => {
-        const dt = Math.max(0, (now - (p.lastDecay || now)) / 1000);
-        const hunger    = Math.max(0, p.hunger - dt * 0.25);
-        const happiness = Math.min(100, Math.max(0, p.happiness - dt * 0.12 + house.hb * dt * 0.015));
-        const health    = Math.max(0, Math.min(100, p.health + (hunger < 20 ? -dt * 0.5 : dt * 0.03)));
-        const age       = p.age + dt / 90;
-        return { ...p, hunger, happiness, health, age, lastDecay: now };
-      });
+      const now = Date.now();
+      const dt = Math.max(0, (now - (p.lastDecay || now)) / 1000);
+      const hunger    = Math.max(0,   p.hunger    - dt * 0.25);
+      const happiness = Math.min(100, Math.max(0, p.happiness - dt * 0.12 + house.hb * dt * 0.015));
+      const health    = Math.max(0,   Math.min(100, p.health + (hunger < 20 ? -dt * 0.5 : dt * 0.03)));
+      const age       = p.age + dt / 90;
+      return { ...p, hunger, happiness, health, age, lastDecay:now };
     }
 
-    /* ═══════════════ UI COMPONENTS ═══════════════ */
+    /* ══ STAT BAR ══ */
     function StatBar({ label, value, color, emoji }) {
       const pct = Math.max(0, Math.min(100, value));
       const low = pct < 30;
@@ -138,48 +136,24 @@
         <div style={{ marginBottom:10 }}>
           <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:4, fontFamily:"Fredoka One, cursive" }}>
             <span style={{ color:"#666" }}>{emoji} {label}</span>
-            <span style={{ color: low ? "#FF6B6B" : "#888", fontWeight: low ? "bold" : "normal" }}>{Math.round(pct)}%</span>
+            <span style={{ color:low?"#FF6B6B":"#888", fontWeight:low?"bold":"normal" }}>{Math.round(pct)}%</span>
           </div>
           <div style={{ height:12, background:"#E8E0EE", borderRadius:99, overflow:"hidden" }}>
-            <div style={{
-              height:"100%", borderRadius:99, width:`${pct}%`,
-              background: low ? "linear-gradient(90deg,#FF6B6B,#FF8E53)" : color,
-              transition:"width 0.6s ease, background 0.4s",
-              boxShadow:`0 0 8px ${color}55`,
-            }} />
+            <div style={{ height:"100%", borderRadius:99, width:`${pct}%`, background:low?"linear-gradient(90deg,#FF6B6B,#FF8E53)":color, transition:"width 0.6s ease,background 0.4s", boxShadow:`0 0 8px ${color}55` }} />
           </div>
         </div>
       );
     }
 
     function CoinBadge({ amount }) {
-      return (
-        <div style={{
-          display:"inline-flex", alignItems:"center", gap:5,
-          background:"linear-gradient(135deg,#FFF9E0,#FFECB3)",
-          border:"2px solid #FFD54F", borderRadius:99,
-          padding:"4px 14px", fontFamily:"Fredoka One, cursive",
-          fontSize:15, color:"#B8860B", boxShadow:"0 2px 8px #FFD54F44",
-        }}>🪙 {amount}</div>
-      );
+      return <div style={{ display:"inline-flex", alignItems:"center", gap:5, background:"linear-gradient(135deg,#FFF9E0,#FFECB3)", border:"2px solid #FFD54F", borderRadius:99, padding:"4px 14px", fontFamily:"Fredoka One, cursive", fontSize:15, color:"#B8860B", boxShadow:"0 2px 8px #FFD54F44" }}>🪙 {amount}</div>;
     }
 
     function Toast({ msg, coins }) {
-      return (
-        <div style={{
-          position:"fixed", top:20, left:"50%",
-          background:"white", borderRadius:20, padding:"10px 20px",
-          boxShadow:"0 8px 32px rgba(0,0,0,0.18)", display:"flex", alignItems:"center", gap:8,
-          fontFamily:"Fredoka One, cursive", fontSize:15, whiteSpace:"nowrap",
-          zIndex:1000, animation:"popIn 0.3s cubic-bezier(0.34,1.56,0.64,1)",
-        }}>
-          <span>{msg}</span>
-          {coins > 0 && <span style={{ color:"#F59E0B", fontWeight:"bold" }}>+{coins} 🪙</span>}
-        </div>
-      );
+      return <div style={{ position:"fixed", top:20, left:"50%", background:"white", borderRadius:20, padding:"10px 20px", boxShadow:"0 8px 32px rgba(0,0,0,0.18)", display:"flex", alignItems:"center", gap:8, fontFamily:"Fredoka One, cursive", fontSize:15, whiteSpace:"nowrap", zIndex:1000, animation:"popIn 0.3s cubic-bezier(0.34,1.56,0.64,1)" }}><span>{msg}</span>{coins > 0 && <span style={{ color:"#F59E0B", fontWeight:"bold" }}>+{coins} 🪙</span>}</div>;
     }
 
-    /* ═══════════════ MINI GAMES ═══════════════ */
+    /* ══ SOLO MINI-GAMES ══ */
     function TapGame({ pet, onEnd }) {
       const pd = PETS.find(p => p.id === pet.type);
       const [count, setCount] = useState(0);
@@ -187,52 +161,24 @@
       const [started, setStarted] = useState(false);
       const [bounce, setBounce] = useState(false);
       const [done, setDone] = useState(false);
-      const doneRef = useRef(false);
-
-      useEffect(() => {
-        if (!started || timeLeft <= 0) return;
-        const t = setTimeout(() => setTimeLeft(x => x-1), 1000);
-        return () => clearTimeout(t);
-      }, [timeLeft, started]);
-
-      useEffect(() => {
-        if (started && timeLeft === 0 && !doneRef.current) {
-          doneRef.current = true; setDone(true);
-          setTimeout(() => onEnd(Math.floor(count * 0.8) + 5, count), 600);
-        }
-      }, [timeLeft, started]);
-
+      const doneRef = useRef(false), cntRef = useRef(0);
+      useEffect(() => { if (!started || timeLeft <= 0) return; const t = setTimeout(() => setTimeLeft(x=>x-1), 1000); return ()=>clearTimeout(t); }, [timeLeft, started]);
+      useEffect(() => { if (started && timeLeft===0 && !doneRef.current) { doneRef.current=true; setDone(true); setTimeout(()=>onEnd(Math.floor(cntRef.current*0.8)+5,cntRef.current),600); } }, [timeLeft, started]);
       const tap = () => {
         if (!started) { setStarted(true); return; }
-        if (timeLeft <= 0) return;
-        setCount(c => c+1); setBounce(true);
-        setTimeout(() => setBounce(false), 120);
+        if (timeLeft<=0) return;
+        cntRef.current++; setCount(cntRef.current); setBounce(true); setTimeout(()=>setBounce(false),120);
       };
-
-      return (
-        <div style={{ textAlign:"center", padding:20 }}>
-          <p style={{ fontFamily:"Fredoka One, cursive", color:"#9333EA", fontSize:18, marginBottom:4 }}>{pd.gameName}</p>
-          <p style={{ color:"#AAA", fontSize:13, marginBottom:12 }}>{!started ? "Tap to start!" : "Tap as fast as you can! 🔥"}</p>
-          <div style={{ display:"flex", justifyContent:"center", gap:24, marginBottom:16 }}>
-            <div style={{ textAlign:"center" }}>
-              <div style={{ fontFamily:"Fredoka One, cursive", fontSize:32, color:"#3B82F6" }}>{timeLeft}</div>
-              <div style={{ fontSize:11, color:"#AAA" }}>seconds</div>
-            </div>
-            <div style={{ textAlign:"center" }}>
-              <div style={{ fontFamily:"Fredoka One, cursive", fontSize:32, color:"#8B5CF6" }}>{count}</div>
-              <div style={{ fontSize:11, color:"#AAA" }}>taps</div>
-            </div>
-          </div>
-          <button onClick={tap} style={{
-            fontSize: bounce ? "6.5rem" : "5.5rem", background:"none", border:"none", cursor:"pointer",
-            transition:"font-size 0.12s, transform 0.12s",
-            transform: bounce ? "rotate(-15deg) scale(1.15)" : "scale(1)",
-            display:"block", margin:"0 auto 12px",
-            filter: bounce ? `drop-shadow(0 0 16px ${pd.color})` : "none",
-          }}>{pd.emoji}</button>
-          {done && <p style={{ fontFamily:"Fredoka One, cursive", color:"#22C55E", fontSize:18 }}>Amazing! {count} taps! 🎉</p>}
+      return <div style={{ textAlign:"center", padding:20 }}>
+        <p style={{ fontFamily:"Fredoka One, cursive", color:"#9333EA", fontSize:18, marginBottom:4 }}>{pd.gameName}</p>
+        <p style={{ color:"#AAA", fontSize:13, marginBottom:12 }}>{!started?"Tap to start!":"Tap as fast as you can! 🔥"}</p>
+        <div style={{ display:"flex", justifyContent:"center", gap:24, marginBottom:16 }}>
+          <div><div style={{ fontFamily:"Fredoka One, cursive", fontSize:32, color:"#3B82F6" }}>{timeLeft}</div><div style={{ fontSize:11, color:"#AAA" }}>seconds</div></div>
+          <div><div style={{ fontFamily:"Fredoka One, cursive", fontSize:32, color:"#8B5CF6" }}>{count}</div><div style={{ fontSize:11, color:"#AAA" }}>taps</div></div>
         </div>
-      );
+        <button onClick={tap} style={{ fontSize:bounce?"6.5rem":"5.5rem", background:"none", border:"none", cursor:"pointer", transition:"font-size 0.12s", transform:bounce?"rotate(-15deg) scale(1.15)":"scale(1)", display:"block", margin:"0 auto 12px", filter:bounce?`drop-shadow(0 0 16px ${pd.color})`:"none" }}>{pd.emoji}</button>
+        {done && <p style={{ fontFamily:"Fredoka One, cursive", color:"#22C55E", fontSize:18 }}>Amazing! {count} taps! 🎉</p>}
+      </div>;
     }
 
     function CatchGame({ pet, onEnd }) {
@@ -242,267 +188,348 @@
       const [timeLeft, setTimeLeft] = useState(12);
       const [started, setStarted] = useState(false);
       const [done, setDone] = useState(false);
-      const nextId = useRef(0);
-      const doneRef = useRef(false);
-      const scoreRef = useRef(0);
-
+      const nextId = useRef(0), doneRef = useRef(false), scoreRef = useRef(0);
+      useEffect(() => { if (!started||timeLeft<=0) return; const t=setInterval(()=>setTimeLeft(x=>x-1),1000); return ()=>clearInterval(t); }, [started,timeLeft]);
       useEffect(() => {
-        if (!started || timeLeft <= 0) return;
-        const t = setInterval(() => setTimeLeft(x => x-1), 1000);
-        return () => clearInterval(t);
-      }, [started, timeLeft]);
-
-      useEffect(() => {
-        if (!started || timeLeft <= 0) return;
-        const t = setInterval(() => {
-          const id = ++nextId.current;
-          const x = 10 + Math.random() * 75;
-          const y = 10 + Math.random() * 70;
-          setItems(prev => [...prev, {id,x,y}]);
-          setTimeout(() => setItems(prev => prev.filter(i => i.id !== id)), 1600);
-        }, 700);
-        return () => clearInterval(t);
-      }, [started, timeLeft]);
-
-      useEffect(() => {
-        if (started && timeLeft === 0 && !doneRef.current) {
-          doneRef.current = true; setDone(true);
-          setTimeout(() => onEnd(scoreRef.current * 2 + 5, scoreRef.current), 600);
-        }
-      }, [timeLeft, started]);
-
-      const catchItem = (id) => {
-        setItems(prev => prev.filter(i => i.id !== id));
-        scoreRef.current += 1;
-        setScore(s => s+1);
-      };
-
-      return (
-        <div style={{ textAlign:"center", padding:12 }}>
-          <p style={{ fontFamily:"Fredoka One, cursive", color:"#9333EA", fontSize:18, marginBottom:4 }}>{pd.gameName}</p>
-          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8, padding:"0 4px" }}>
-            <span style={{ fontFamily:"Fredoka One, cursive", color:"#3B82F6", fontSize:18 }}>⏱ {timeLeft}s</span>
-            <span style={{ fontFamily:"Fredoka One, cursive", color:"#8B5CF6", fontSize:18 }}>⭐ {score}</span>
-          </div>
-          {!started ? (
-            <div>
-              <p style={{ color:"#AAA", fontSize:13, marginBottom:12 }}>Tap the {pd.emoji} before they vanish!</p>
-              <button onClick={() => setStarted(true)} style={{
-                background:"linear-gradient(135deg,#8B5CF6,#6D28D9)", color:"white",
-                border:"none", borderRadius:20, padding:"10px 28px",
-                fontFamily:"Fredoka One, cursive", fontSize:16, cursor:"pointer",
-              }}>Start!</button>
-            </div>
-          ) : (
-            <div style={{
-              position:"relative", height:190, background:pd.bg,
-              borderRadius:16, overflow:"hidden", border:`2px solid ${pd.color}44`,
-            }}>
-              {items.map(item => (
-                <button key={item.id} onClick={() => catchItem(item.id)} style={{
-                  position:"absolute", left:`${item.x}%`, top:`${item.y}%`,
-                  transform:"translate(-50%,-50%)", background:"none", border:"none",
-                  fontSize:"2.2rem", cursor:"pointer",
-                  animation:"fadeIn 0.2s ease",
-                }}>{pd.emoji}</button>
-              ))}
-              {done && (
-                <div style={{
-                  position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center",
-                  background:"rgba(255,255,255,0.88)", fontFamily:"Fredoka One, cursive", color:"#22C55E", fontSize:22,
-                }}>Score: {score}! 🎉</div>
-              )}
-            </div>
-          )}
+        if (!started||timeLeft<=0) return;
+        const t=setInterval(()=>{
+          const id=++nextId.current; setItems(prev=>[...prev,{id,x:10+Math.random()*75,y:10+Math.random()*70}]);
+          setTimeout(()=>setItems(prev=>prev.filter(i=>i.id!==id)),1600);
+        },700); return ()=>clearInterval(t);
+      }, [started,timeLeft]);
+      useEffect(() => { if (started&&timeLeft===0&&!doneRef.current) { doneRef.current=true; setDone(true); setTimeout(()=>onEnd(scoreRef.current*2+5,scoreRef.current),600); } }, [timeLeft,started]);
+      const catchItem = id => { setItems(prev=>prev.filter(i=>i.id!==id)); scoreRef.current++; setScore(scoreRef.current); };
+      return <div style={{ textAlign:"center", padding:12 }}>
+        <p style={{ fontFamily:"Fredoka One, cursive", color:"#9333EA", fontSize:18, marginBottom:4 }}>{pd.gameName}</p>
+        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8, padding:"0 4px" }}>
+          <span style={{ fontFamily:"Fredoka One, cursive", color:"#3B82F6", fontSize:18 }}>⏱ {timeLeft}s</span>
+          <span style={{ fontFamily:"Fredoka One, cursive", color:"#8B5CF6", fontSize:18 }}>⭐ {score}</span>
         </div>
-      );
+        {!started ? <div><p style={{ color:"#AAA", fontSize:13, marginBottom:12 }}>Tap the {pd.emoji} before they vanish!</p><button onClick={()=>setStarted(true)} style={{ background:"linear-gradient(135deg,#8B5CF6,#6D28D9)", color:"white", border:"none", borderRadius:20, padding:"10px 28px", fontFamily:"Fredoka One, cursive", fontSize:16, cursor:"pointer" }}>Start!</button></div>
+        : <div style={{ position:"relative", height:190, background:pd.bg, borderRadius:16, overflow:"hidden", border:`2px solid ${pd.color}44` }}>
+            {items.map(item=><button key={item.id} onClick={()=>catchItem(item.id)} style={{ position:"absolute", left:`${item.x}%`, top:`${item.y}%`, transform:"translate(-50%,-50%)", background:"none", border:"none", fontSize:"2.2rem", cursor:"pointer", animation:"fadeIn 0.2s ease" }}>{pd.emoji}</button>)}
+            {done&&<div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(255,255,255,0.88)", fontFamily:"Fredoka One, cursive", color:"#22C55E", fontSize:22 }}>Score: {score}! 🎉</div>}
+          </div>}
+      </div>;
     }
 
     function TimingGame({ pet, onEnd }) {
       const pd = PETS.find(p => p.id === pet.type);
-      const [pos, setPos] = useState(0);
-      const [score, setScore] = useState(0);
-      const [round, setRound] = useState(0);
-      const [feedback, setFeedback] = useState("");
-      const [started, setStarted] = useState(false);
-      const [done, setDone] = useState(false);
-      const ROUNDS = 5;
-      const posRef = useRef(0);
-      const dirRef = useRef(1);
-      const animRef = useRef(null);
-      const scoreRef = useRef(0);
-      const roundRef = useRef(0);
-
+      const [pos, setPos] = useState(0), [score, setScore] = useState(0), [round, setRound] = useState(0);
+      const [feedback, setFeedback] = useState(""), [started, setStarted] = useState(false), [done, setDone] = useState(false);
+      const ROUNDS=5; const posRef=useRef(0), dirRef=useRef(1), animRef=useRef(null), scoreRef=useRef(0), roundRef=useRef(0);
       useEffect(() => {
         if (!started) return;
-        const speed = 1.5 + roundRef.current * 0.3;
-        const step = () => {
-          posRef.current += dirRef.current * speed;
-          if (posRef.current >= 100) dirRef.current = -1;
-          if (posRef.current <= 0)  dirRef.current = 1;
-          setPos(posRef.current);
-          animRef.current = requestAnimationFrame(step);
-        };
-        animRef.current = requestAnimationFrame(step);
-        return () => cancelAnimationFrame(animRef.current);
-      }, [started, round]);
-
+        const speed=1.5+roundRef.current*0.3;
+        const step=()=>{ posRef.current+=dirRef.current*speed; if(posRef.current>=100)dirRef.current=-1; if(posRef.current<=0)dirRef.current=1; setPos(posRef.current); animRef.current=requestAnimationFrame(step); };
+        animRef.current=requestAnimationFrame(step); return ()=>cancelAnimationFrame(animRef.current);
+      }, [started,round]);
       const handleTap = () => {
-        if (!started) { setStarted(true); return; }
-        if (done) return;
+        if (!started) { setStarted(true); return; } if (done) return;
         cancelAnimationFrame(animRef.current);
-        const dist = Math.abs(posRef.current - 50);
-        let pts = 0, msg = "";
-        if (dist < 5)       { pts = 10; msg = "🌟 PERFECT!"; }
-        else if (dist < 15) { pts = 6;  msg = "✨ Great!"; }
-        else if (dist < 28) { pts = 3;  msg = "👍 Good!"; }
-        else                { pts = 1;  msg = "😅 Close!"; }
-        scoreRef.current += pts;
-        setScore(scoreRef.current);
-        setFeedback(msg);
-        roundRef.current += 1;
-        const nr = roundRef.current;
-        setRound(nr);
-        setTimeout(() => setFeedback(""), 700);
-        if (nr >= ROUNDS) {
-          setDone(true);
-          setTimeout(() => onEnd(Math.floor(scoreRef.current * 0.7) + 5, scoreRef.current), 800);
-        }
+        const dist=Math.abs(posRef.current-50); let pts=0,msg="";
+        if(dist<5){pts=10;msg="🌟 PERFECT!";}else if(dist<15){pts=6;msg="✨ Great!";}else if(dist<28){pts=3;msg="👍 Good!";}else{pts=1;msg="😅 Close!";}
+        scoreRef.current+=pts; setScore(scoreRef.current); setFeedback(msg); roundRef.current++; setRound(roundRef.current);
+        setTimeout(()=>setFeedback(""),700);
+        if(roundRef.current>=ROUNDS){setDone(true);setTimeout(()=>onEnd(Math.floor(scoreRef.current*0.7)+5,scoreRef.current),800);}
       };
-
-      return (
-        <div style={{ textAlign:"center", padding:16 }}>
-          <p style={{ fontFamily:"Fredoka One, cursive", color:"#9333EA", fontSize:18, marginBottom:4 }}>{pd.gameName}</p>
-          <p style={{ color:"#AAA", fontSize:13, marginBottom:8 }}>
-            {!started ? "Tap when the pet is in the green zone!" : done ? "Finished! 🎉" : `Round ${round + 1} / ${ROUNDS}`}
-          </p>
-          <div style={{ fontFamily:"Fredoka One, cursive", fontSize:28, color:"#8B5CF6", marginBottom:12 }}>⭐ {score}</div>
-          {!started ? (
-            <button onClick={handleTap} style={{
-              background:"linear-gradient(135deg,#8B5CF6,#6D28D9)", color:"white",
-              border:"none", borderRadius:20, padding:"10px 28px",
-              fontFamily:"Fredoka One, cursive", fontSize:16, cursor:"pointer",
-            }}>Start!</button>
-          ) : (
-            <div>
-              <div style={{ position:"relative", height:56, background:"#F3F0FF", borderRadius:99, margin:"0 8px 12px", overflow:"hidden" }}>
-                <div style={{ position:"absolute", top:0, bottom:0, left:"38%", width:"24%", background:"#DCFCE7", borderRadius:99 }} />
-                <div style={{
-                  position:"absolute", top:"50%", transform:"translate(-50%,-50%)",
-                  left:`${pos}%`, fontSize:"2.4rem", transition:"none",
-                }}>{pd.emoji}</div>
-              </div>
-              <div style={{ fontFamily:"Fredoka One, cursive", fontSize:20, height:28, color:"#F59E0B" }}>{feedback}</div>
-              {!done && (
-                <button onClick={handleTap} style={{
-                  marginTop:8, background:"linear-gradient(135deg,#F59E0B,#D97706)", color:"white",
-                  border:"none", borderRadius:20, padding:"12px 36px",
-                  fontFamily:"Fredoka One, cursive", fontSize:20, cursor:"pointer",
-                  boxShadow:"0 4px 16px #F59E0B55",
-                }}>TAP!</button>
-              )}
+      return <div style={{ textAlign:"center", padding:16 }}>
+        <p style={{ fontFamily:"Fredoka One, cursive", color:"#9333EA", fontSize:18, marginBottom:4 }}>{pd.gameName}</p>
+        <p style={{ color:"#AAA", fontSize:13, marginBottom:8 }}>{!started?"Tap when the pet is in the green zone!":done?"Finished! 🎉":`Round ${round+1} / ${ROUNDS}`}</p>
+        <div style={{ fontFamily:"Fredoka One, cursive", fontSize:28, color:"#8B5CF6", marginBottom:12 }}>⭐ {score}</div>
+        {!started ? <button onClick={handleTap} style={{ background:"linear-gradient(135deg,#8B5CF6,#6D28D9)", color:"white", border:"none", borderRadius:20, padding:"10px 28px", fontFamily:"Fredoka One, cursive", fontSize:16, cursor:"pointer" }}>Start!</button>
+        : <div>
+            <div style={{ position:"relative", height:56, background:"#F3F0FF", borderRadius:99, margin:"0 8px 12px", overflow:"hidden" }}>
+              <div style={{ position:"absolute", top:0, bottom:0, left:"38%", width:"24%", background:"#DCFCE7", borderRadius:99 }} />
+              <div style={{ position:"absolute", top:"50%", transform:"translate(-50%,-50%)", left:`${pos}%`, fontSize:"2.4rem", transition:"none" }}>{pd.emoji}</div>
             </div>
-          )}
-        </div>
-      );
+            <div style={{ fontFamily:"Fredoka One, cursive", fontSize:20, height:28, color:"#F59E0B" }}>{feedback}</div>
+            {!done&&<button onClick={handleTap} style={{ marginTop:8, background:"linear-gradient(135deg,#F59E0B,#D97706)", color:"white", border:"none", borderRadius:20, padding:"12px 36px", fontFamily:"Fredoka One, cursive", fontSize:20, cursor:"pointer", boxShadow:"0 4px 16px #F59E0B55" }}>TAP!</button>}
+          </div>}
+      </div>;
     }
 
-    function GameModal({ pet, onClose, onEarn }) {
-      const pd = PETS.find(p => p.id === pet.type);
-      const [result, setResult] = useState(null);
-      const handleEnd = (coins, score) => { setResult({coins,score}); onEarn(coins); };
-      return (
-        <div style={{
-          position:"fixed", inset:0, background:"rgba(0,0,0,0.55)",
-          display:"flex", alignItems:"center", justifyContent:"center", zIndex:500,
-        }} onClick={e => e.target === e.currentTarget && onClose()}>
+    /* ══ TAG GAME ══
+       Pets bounce around. One is "IT" (glowing red). Tap the IT pet
+       to tag it — the "IT" label passes to a random other pet.
+       Score 1 point per tag. 15 seconds.
+    ══ */
+    function TagGame({ petList, onEnd }) {
+      const DURATION = 15;
+      const [timeLeft, setTimeLeft] = useState(DURATION);
+      const [score, setScore]       = useState(0);
+      const [started, setStarted]   = useState(false);
+      const [done, setDone]         = useState(false);
+      const [itIdx, setItIdx]       = useState(0);
+      const [tagged, setTagged]     = useState(false);
+      const [positions, setPositions] = useState(petList.map((_,i)=>({ x:15+(i*(70/(Math.max(petList.length-1,1)))), y:40 })));
+
+      const doneRef   = useRef(false);
+      const scoreRef  = useRef(0);
+      const itRef     = useRef(0);
+      const posRef    = useRef(petList.map((_,i)=>({ x:15+(i*(70/(Math.max(petList.length-1,1)))), y:40, vx:(Math.random()-0.5)*1.6, vy:(Math.random()-0.5)*1.6 })));
+
+      useEffect(() => {
+        if (!started||timeLeft<=0) return;
+        const t=setTimeout(()=>setTimeLeft(x=>x-1),1000); return ()=>clearTimeout(t);
+      }, [timeLeft,started]);
+
+      useEffect(() => {
+        if (started&&timeLeft===0&&!doneRef.current) {
+          doneRef.current=true; setDone(true);
+          setTimeout(()=>onEnd(scoreRef.current*3+5, scoreRef.current),700);
+        }
+      }, [timeLeft,started]);
+
+      useEffect(() => {
+        if (!started||done) return;
+        let af;
+        const step = () => {
+          posRef.current = posRef.current.map((p,i) => {
+            const spd = i===itRef.current ? 1.9 : 1.1;
+            let nx=p.x+p.vx*spd, ny=p.y+p.vy*spd, vx=p.vx, vy=p.vy;
+            if(nx<4||nx>86){vx=-vx;nx=Math.max(4,Math.min(86,nx));}
+            if(ny<5||ny>78){vy=-vy;ny=Math.max(5,Math.min(78,ny));}
+            return {x:nx,y:ny,vx,vy};
+          });
+          setPositions(posRef.current.map(p=>({x:p.x,y:p.y})));
+          af=requestAnimationFrame(step);
+        };
+        af=requestAnimationFrame(step); return ()=>cancelAnimationFrame(af);
+      }, [started,done]);
+
+      const tapPet = i => {
+        if (!started||done||i!==itRef.current) return;
+        scoreRef.current++; setScore(scoreRef.current);
+        setTagged(true); setTimeout(()=>setTagged(false),300);
+        const others=petList.map((_,idx)=>idx).filter(idx=>idx!==i);
+        const nextIt=others[Math.floor(Math.random()*others.length)];
+        itRef.current=nextIt; setItIdx(nextIt);
+      };
+
+      return <div style={{ textAlign:"center" }}>
+        <p style={{ fontFamily:"Fredoka One, cursive", color:"#EF4444", fontSize:20, marginBottom:2 }}>🏷️ Tag!</p>
+        <p style={{ color:"#AAA", fontSize:12, marginBottom:8 }}>Tap the glowing red pet — they're IT!</p>
+        <div style={{ display:"flex", justifyContent:"space-between", padding:"0 8px", marginBottom:8 }}>
+          <span style={{ fontFamily:"Fredoka One, cursive", color:"#3B82F6", fontSize:18 }}>⏱ {timeLeft}s</span>
+          <span style={{ fontFamily:"Fredoka One, cursive", color:"#EF4444", fontSize:18 }}>🏷️ {score}</span>
+        </div>
+        {!started ? (
+          <div style={{ padding:"20px 0" }}>
+            <div style={{ fontSize:"2.5rem", marginBottom:10 }}>{petList.map(p=>PETS.find(x=>x.id===p.type).emoji).join("  ")}</div>
+            <p style={{ color:"#888", fontSize:13, marginBottom:16 }}>One pet will glow red — tap them to score! They'll pass it on.</p>
+            <button onClick={()=>setStarted(true)} style={{ background:"linear-gradient(135deg,#EF4444,#DC2626)", color:"white", border:"none", borderRadius:20, padding:"12px 32px", fontFamily:"Fredoka One, cursive", fontSize:18, cursor:"pointer", boxShadow:"0 4px 16px #EF444455" }}>Play Tag! 🏷️</button>
+          </div>
+        ) : (
           <div style={{
-            background:"white", borderRadius:28, padding:8, margin:16,
-            width:"100%", maxWidth:360,
-            boxShadow:"0 20px 60px rgba(0,0,0,0.25)",
-            border:`3px solid ${pd.color}`,
+            position:"relative", height:230,
+            background:"linear-gradient(135deg,#FFF5F5,#FFF0FB)",
+            borderRadius:16, overflow:"hidden", border:"2px solid #FCA5A544",
+            boxShadow:tagged?"inset 0 0 30px #EF444422":"none", transition:"box-shadow 0.2s",
           }}>
+            {[20,50,80].map(x=>[25,65].map(y=>(
+              <div key={`d${x}${y}`} style={{ position:"absolute", left:`${x}%`, top:`${y}%`, width:6, height:6, borderRadius:99, background:"rgba(0,0,0,0.06)" }} />
+            )))}
+            {petList.map((p,i)=>{
+              const ppd=PETS.find(x=>x.id===p.type);
+              const isIt=i===itIdx;
+              return (
+                <button key={p.id} onClick={()=>tapPet(i)} style={{
+                  position:"absolute", left:`${positions[i]?.x??20}%`, top:`${positions[i]?.y??40}%`,
+                  transform:"translate(-50%,-50%)", background:"none", border:"none",
+                  cursor:isIt?"pointer":"default", fontSize:isIt?"2.5rem":"2rem",
+                  animation:isIt?"itGlow 0.8s ease-in-out infinite":"float 2s ease-in-out infinite",
+                  zIndex:isIt?10:5,
+                }}>
+                  {ppd.emoji}
+                  {isIt&&<div style={{ position:"absolute", top:"-20px", left:"50%", transform:"translateX(-50%)", background:"#EF4444", color:"white", fontSize:10, fontFamily:"Fredoka One, cursive", borderRadius:99, padding:"1px 7px", whiteSpace:"nowrap", animation:"pulse 1s infinite" }}>IT!</div>}
+                </button>
+              );
+            })}
+            {done&&<div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"rgba(255,255,255,0.9)" }}>
+              <div style={{ fontFamily:"Fredoka One, cursive", color:"#EF4444", fontSize:24, marginBottom:4 }}>Time's up! 🏷️</div>
+              <div style={{ fontFamily:"Fredoka One, cursive", color:"#F59E0B", fontSize:20 }}>{score} tags!</div>
+            </div>}
+          </div>
+        )}
+      </div>;
+    }
+
+    /* ══ SOLO GAME MODAL ══ */
+    function GameModal({ pet, onClose, onEarn }) {
+      const pd=PETS.find(p=>p.id===pet.type);
+      const [result, setResult]=useState(null);
+      const handleEnd=(coins,score)=>{setResult({coins,score});onEarn(coins);};
+      return <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:500 }} onClick={e=>e.target===e.currentTarget&&onClose()}>
+        <div style={{ background:"white", borderRadius:28, padding:8, margin:16, width:"100%", maxWidth:360, boxShadow:"0 20px 60px rgba(0,0,0,0.25)", border:`3px solid ${pd.color}` }}>
+          {result ? (
+            <div style={{ textAlign:"center", padding:28 }}>
+              <div style={{ fontSize:"4rem", marginBottom:8 }}>{pd.emoji}</div>
+              <div style={{ fontFamily:"Fredoka One, cursive", fontSize:24, color:"#333", marginBottom:6 }}>Awesome job!</div>
+              <div style={{ fontFamily:"Fredoka One, cursive", fontSize:32, color:"#F59E0B", marginBottom:4 }}>+{result.coins} 🪙</div>
+              <div style={{ color:"#AAA", fontSize:13, marginBottom:20 }}>Score: {result.score}</div>
+              <button onClick={onClose} style={{ background:"linear-gradient(135deg,#22C55E,#16A34A)", color:"white", border:"none", borderRadius:20, padding:"12px 32px", fontFamily:"Fredoka One, cursive", fontSize:18, cursor:"pointer" }}>Woohoo! 🎉</button>
+            </div>
+          ) : <>
+            {pd.game==="tap"    && <TapGame    pet={pet} onEnd={handleEnd} />}
+            {pd.game==="catch"  && <CatchGame  pet={pet} onEnd={handleEnd} />}
+            {pd.game==="timing" && <TimingGame pet={pet} onEnd={handleEnd} />}
+            <button onClick={onClose} style={{ display:"block", margin:"8px auto 12px", color:"#CCC", background:"none", border:"none", fontSize:13, cursor:"pointer", fontFamily:"Fredoka One, cursive" }}>Quit</button>
+          </>}
+        </div>
+      </div>;
+    }
+
+    /* ══ PLAYDATE MODAL ══ */
+    function PlaydateModal({ pets, onClose, onEarn }) {
+      const [playingTag, setPlayingTag] = useState(false);
+      const [result, setResult]         = useState(null);
+
+      const handleTagEnd = (coins, score) => {
+        setResult({coins,score});
+        onEarn(coins, pets.map(p=>p.id));
+        setPlayingTag(false);
+      };
+
+      const cols = pets.map(p => PETS.find(x=>x.id===p.type).color);
+      const gradBg = `linear-gradient(135deg,${cols[0]}33,${cols[cols.length-1]}33)`;
+
+      return <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:500 }} onClick={e=>e.target===e.currentTarget&&onClose()}>
+        <div style={{ background:"white", borderRadius:28, padding:0, margin:16, width:"100%", maxWidth:380, boxShadow:"0 20px 60px rgba(0,0,0,0.25)", overflow:"hidden" }}>
+          <div style={{ background:gradBg, padding:"18px 20px 14px", textAlign:"center" }}>
+            <div style={{ fontFamily:"Fredoka One, cursive", fontSize:22, color:"#7C3AED", marginBottom:6 }}>🎉 Playdate!</div>
+            <div style={{ display:"flex", justifyContent:"center", gap:8, flexWrap:"wrap" }}>
+              {pets.map(p=>{
+                const ppd=PETS.find(x=>x.id===p.type);
+                return <div key={p.id} style={{ display:"flex", alignItems:"center", gap:4, background:"white", borderRadius:99, padding:"4px 12px", fontSize:13, fontFamily:"Nunito, sans-serif", fontWeight:700 }}><span style={{ fontSize:"1.3rem" }}>{ppd.emoji}</span>{p.name}</div>;
+              })}
+            </div>
+          </div>
+          <div style={{ padding:"16px 16px 20px" }}>
             {result ? (
-              <div style={{ textAlign:"center", padding:28 }}>
-                <div style={{ fontSize:"4rem", marginBottom:8 }}>{pd.emoji}</div>
-                <div style={{ fontFamily:"Fredoka One, cursive", fontSize:24, color:"#333", marginBottom:6 }}>Awesome job!</div>
-                <div style={{ fontFamily:"Fredoka One, cursive", fontSize:32, color:"#F59E0B", marginBottom:4 }}>+{result.coins} 🪙</div>
-                <div style={{ color:"#AAA", fontSize:13, marginBottom:20 }}>Score: {result.score}</div>
-                <button onClick={onClose} style={{
-                  background:"linear-gradient(135deg,#22C55E,#16A34A)", color:"white",
-                  border:"none", borderRadius:20, padding:"12px 32px",
-                  fontFamily:"Fredoka One, cursive", fontSize:18, cursor:"pointer",
-                }}>Woohoo! 🎉</button>
+              <div style={{ textAlign:"center", padding:"12px 0" }}>
+                <div style={{ fontSize:"3rem", marginBottom:8 }}>🏷️🎉</div>
+                <div style={{ fontFamily:"Fredoka One, cursive", fontSize:22, color:"#333", marginBottom:6 }}>What a game!</div>
+                <div style={{ fontFamily:"Fredoka One, cursive", fontSize:30, color:"#F59E0B", marginBottom:4 }}>+{result.coins} 🪙</div>
+                <div style={{ color:"#AAA", fontSize:13, marginBottom:16 }}>{result.score} tags scored</div>
+                <button onClick={()=>setResult(null)} style={{ background:"linear-gradient(135deg,#EF4444,#DC2626)", color:"white", border:"none", borderRadius:20, padding:"10px 24px", fontFamily:"Fredoka One, cursive", fontSize:16, cursor:"pointer", marginRight:8 }}>Play Again! 🏷️</button>
+                <button onClick={onClose} style={{ background:"linear-gradient(135deg,#22C55E,#16A34A)", color:"white", border:"none", borderRadius:20, padding:"10px 24px", fontFamily:"Fredoka One, cursive", fontSize:16, cursor:"pointer" }}>Done 🎉</button>
               </div>
-            ) : (
+            ) : playingTag ? (
               <>
-                {pd.game === "tap"    && <TapGame    pet={pet} onEnd={handleEnd} />}
-                {pd.game === "catch"  && <CatchGame  pet={pet} onEnd={handleEnd} />}
-                {pd.game === "timing" && <TimingGame pet={pet} onEnd={handleEnd} />}
-                <button onClick={onClose} style={{ display:"block", margin:"8px auto 12px", color:"#CCC", background:"none", border:"none", fontSize:13, cursor:"pointer", fontFamily:"Fredoka One, cursive" }}>Quit game</button>
+                <TagGame petList={pets} onEnd={handleTagEnd} />
+                <button onClick={()=>setPlayingTag(false)} style={{ display:"block", margin:"10px auto 0", color:"#CCC", background:"none", border:"none", fontSize:12, cursor:"pointer", fontFamily:"Fredoka One, cursive" }}>Quit game</button>
               </>
+            ) : (
+              <div style={{ textAlign:"center" }}>
+                <div style={{ background:gradBg, borderRadius:20, padding:"20px 0", marginBottom:16, display:"flex", justifyContent:"center", gap:12, flexWrap:"wrap" }}>
+                  {pets.map((p,i)=>{
+                    const ppd=PETS.find(x=>x.id===p.type);
+                    return <div key={p.id} style={{ textAlign:"center", animation:`float ${2+i*0.4}s ease-in-out infinite` }}>
+                      <div style={{ fontSize:"3.5rem", filter:`drop-shadow(0 4px 8px ${ppd.color}66)` }}>{ppd.emoji}</div>
+                      <div style={{ fontFamily:"Fredoka One, cursive", fontSize:12, color:"#888", marginTop:2 }}>{p.name}</div>
+                    </div>;
+                  })}
+                </div>
+                <p style={{ color:"#888", fontSize:13, marginBottom:16, fontFamily:"Nunito, sans-serif" }}>All pets got +20 happiness from hanging out! 🌟</p>
+                <button onClick={()=>setPlayingTag(true)} style={{ width:"100%", padding:"14px 0", border:"none", borderRadius:18, cursor:"pointer", background:"linear-gradient(135deg,#EF4444,#DC2626)", color:"white", fontFamily:"Fredoka One, cursive", fontSize:18, boxShadow:"0 6px 20px #EF444455" }}>🏷️ Play Tag Together!</button>
+                <button onClick={onClose} style={{ marginTop:10, width:"100%", padding:"10px 0", border:"2px solid #E5E7EB", borderRadius:18, cursor:"pointer", background:"transparent", color:"#AAA", fontFamily:"Fredoka One, cursive", fontSize:15 }}>End Playdate</button>
+              </div>
             )}
           </div>
         </div>
-      );
+      </div>;
     }
 
-    /* ═══════════════ MAIN APP ═══════════════ */
+    /* ══ MAIN APP ══ */
     function App() {
-      const [gs, setGs] = useState(null);
-      const [loading, setLoading] = useState(true);
-      const [tab, setTab] = useState("home");
-      const [shopCat, setShopCat] = useState("pets");
-      const [toast, setToast] = useState(null);
+      const [gs, setGs]               = useState(null);
+      const [loading, setLoading]     = useState(true);
+      const [tab, setTab]             = useState("home");
+      const [shopCat, setShopCat]     = useState("pets");
+      const [toast, setToast]         = useState(null);
       const [trickAnim, setTrickAnim] = useState(false);
-      const [petAnim, setPetAnim] = useState(false);
-      const [feedOpen, setFeedOpen] = useState(false);
-      const [gameOpen, setGameOpen] = useState(false);
-      const toastTimer = useRef(null);
-      const feedRef = useRef(null);
+      const [petAnim, setPetAnim]     = useState(false);
+      const [feedOpen, setFeedOpen]   = useState(false);
+      const [gameOpen, setGameOpen]   = useState(false);
+      const [playdateMode, setPlaydateMode]   = useState(false);
+      const [playdatePets, setPlaydatePets]   = useState([]);
+      const [playdateOpen, setPlaydateOpen]   = useState(false);
 
-      /* Load + apply offline decay */
+      const toastTimer = useRef(null);
+      const feedRef    = useRef(null);
+      const tabVisible = useRef(!document.hidden); // Page Visibility
+
+      /* PAGE VISIBILITY — pause decay when tab hidden, reset lastDecay on return */
+      useEffect(() => {
+        const handler = () => {
+          tabVisible.current = !document.hidden;
+          if (!document.hidden) {
+            // Tab came back: snap lastDecay to now for active pet so nothing accumulated
+            setGs(prev => {
+              if (!prev) return prev;
+              return { ...prev, pets: prev.pets.map(p => ({ ...p, lastDecay: Date.now() })) };
+            });
+          }
+        };
+        document.addEventListener("visibilitychange", handler);
+        return () => document.removeEventListener("visibilitychange", handler);
+      }, []);
+
+      /* LOAD + apply offline decay to active pet only */
       useEffect(() => {
         const saved = loadGame();
-        const now = Date.now();
+        const now   = Date.now();
         if (saved) {
-          const dt = now - (saved.pets[0]?.lastDecay || now);
-          const mins = Math.floor(dt / 60000);
-          const updatedPets = applyDecay(saved.pets, saved.currentHouse, now);
+          const ap = saved.pets.find(p => p.id === saved.activePetId);
+          const offlineSecs = ap ? Math.max(0, (now - (ap.lastDecay || now)) / 1000) : 0;
+          const updatedPets = saved.pets.map(p =>
+            p.id === saved.activePetId
+              ? decayPet(p, saved.currentHouse)    // only active pet gets offline decay
+              : { ...p, lastDecay: now }            // inactive pets: reset timestamp, no penalty
+          );
           setGs({ ...saved, pets: updatedPets });
-          if (mins > 1) {
-            const hrs = Math.floor(mins / 60);
+          if (offlineSecs > 60) {
+            const mins = Math.floor(offlineSecs / 60), hrs = Math.floor(mins / 60);
             const away = hrs > 0 ? `${hrs}h ${mins % 60}m` : `${mins}m`;
-            setTimeout(() => notify(`Welcome back! You were gone ${away} 🐾`), 600);
+            setTimeout(() => notify(`Welcome back! You were gone ${away} 🐾`), 700);
           }
         } else {
-          setGs({ ...INIT_STATE, pets: [freshPet("p1","fluffball")] });
+          setGs({ ...INIT_STATE, pets:[freshPet("p1","fluffball")] });
         }
         setLoading(false);
       }, []);
 
-      /* Auto-save every time state changes */
+      /* AUTO-SAVE */
       useEffect(() => { if (gs) saveGame(gs); }, [gs]);
 
-      /* Live decay tick */
+      /* LIVE DECAY TICK — active pet only, tab-visible only */
       useEffect(() => {
         const id = setInterval(() => {
+          if (!tabVisible.current) return; // tab is hidden → do nothing
           setGs(prev => {
             if (!prev) return prev;
-            return { ...prev, pets: applyDecay(prev.pets, prev.currentHouse, Date.now()) };
+            return {
+              ...prev,
+              pets: prev.pets.map(p =>
+                p.id === prev.activePetId
+                  ? decayPet(p, prev.currentHouse)  // active pet decays
+                  : { ...p, lastDecay: Date.now() } // inactive: keep timestamp current, no stat change
+              ),
+            };
           });
         }, 5000);
         return () => clearInterval(id);
       }, []);
 
-      /* Close feed on outside click */
+      /* CLOSE FEED ON OUTSIDE CLICK */
       useEffect(() => {
         const h = e => { if (feedRef.current && !feedRef.current.contains(e.target)) setFeedOpen(false); };
         document.addEventListener("mousedown", h);
         return () => document.removeEventListener("mousedown", h);
       }, []);
 
-      const notify = (msg, coins = 0) => {
+      const notify = (msg, coins=0) => {
         if (toastTimer.current) clearTimeout(toastTimer.current);
         setToast({msg, coins});
         toastTimer.current = setTimeout(() => setToast(null), 2400);
@@ -511,12 +538,12 @@
       const updateGs = fn => setGs(prev => fn(prev));
 
       const activePet = gs?.pets.find(p => p.id === gs.activePetId);
-      const pd = activePet ? PETS.find(p => p.id === activePet.type) : null;
-      const house = gs ? (HOUSES.find(h => h.id === gs.currentHouse) || HOUSES[0]) : HOUSES[0];
+      const pd        = activePet ? PETS.find(p => p.id === activePet.type) : null;
+      const house     = gs ? (HOUSES.find(h => h.id === gs.currentHouse) || HOUSES[0]) : HOUSES[0];
 
-      const mutate = (petChanges, coinDelta = 0) => updateGs(prev => ({
+      const mutate = (changes, coinDelta=0) => updateGs(prev => ({
         ...prev, coins: prev.coins + coinDelta,
-        pets: prev.pets.map(p => p.id === prev.activePetId ? { ...p, ...petChanges } : p),
+        pets: prev.pets.map(p => p.id === prev.activePetId ? { ...p, ...changes } : p),
       }));
 
       const handlePet = () => {
@@ -535,21 +562,15 @@
       const handleFeed = (key, isUnique) => {
         setFeedOpen(false);
         if (isUnique) {
-          const uf = UNIQUE_FOODS[pd.uf];
-          if (!uf) return;
+          const uf = UNIQUE_FOODS[pd.uf]; if (!uf) return;
           mutate({ hunger: Math.min(100, activePet.hunger + uf.n), happiness: Math.min(100, activePet.happiness + uf.h) }, 2);
           notify(`${uf.emoji} Fed ${uf.name}!`, 2);
         } else {
-          const food = COMMON_FOODS.find(f => f.id === key);
-          if (!food) return;
+          const food = COMMON_FOODS.find(f => f.id === key); if (!food) return;
           if (food.price > 0 && gs.coins < food.price) { notify("Not enough coins! 😅"); return; }
           updateGs(prev => ({
             ...prev, coins: prev.coins - food.price + 2,
-            pets: prev.pets.map(p => p.id === prev.activePetId ? {
-              ...p,
-              hunger:    Math.min(100, p.hunger    + food.n),
-              happiness: Math.min(100, p.happiness + food.h),
-            } : p),
+            pets: prev.pets.map(p => p.id === prev.activePetId ? { ...p, hunger: Math.min(100, p.hunger + food.n), happiness: Math.min(100, p.happiness + food.h) } : p),
           }));
           notify(`${food.emoji} Fed ${food.name}!`, 2);
         }
@@ -562,390 +583,251 @@
       };
 
       const handleGameEarn = coins => {
+        updateGs(prev => ({ ...prev, coins: prev.coins + coins, pets: prev.pets.map(p => p.id === prev.activePetId ? { ...p, happiness: Math.min(100, p.happiness + 20) } : p) }));
+      };
+
+      /* PLAYDATE */
+      const handlePlaydateEarn = (coins, petIds) => {
         updateGs(prev => ({
           ...prev, coins: prev.coins + coins,
-          pets: prev.pets.map(p => p.id === prev.activePetId ? { ...p, happiness: Math.min(100, p.happiness + 20) } : p),
+          pets: prev.pets.map(p => petIds.includes(p.id) ? { ...p, happiness: Math.min(100, p.happiness + 20) } : p),
         }));
-        notify("🎮 Great game!", coins);
+        notify("🎉 Playdate complete!", coins);
+      };
+
+      const togglePlaydatePet = id => setPlaydatePets(prev => prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id]);
+
+      const startPlaydate = () => {
+        if (playdatePets.length < 2) { notify("Pick at least 2 pets! 🐾"); return; }
+        // Give instant happiness bump on playdate start
+        updateGs(prev => ({
+          ...prev,
+          pets: prev.pets.map(p => playdatePets.includes(p.id) ? { ...p, happiness: Math.min(100, p.happiness + 20) } : p),
+        }));
+        setPlaydateOpen(true);
+        setPlaydateMode(false);
       };
 
       const buyPet = pet => {
         if (gs.unlockedPetTypes.includes(pet.id)) return;
         if (gs.coins < pet.unlockCost) { notify("Not enough coins! 😅"); return; }
-        const np = freshPet(`p${gs.nextId}`, pet.id);
-        updateGs(prev => ({
-          ...prev, coins: prev.coins - pet.unlockCost, nextId: prev.nextId + 1,
-          unlockedPetTypes: [...prev.unlockedPetTypes, pet.id],
-          pets: [...prev.pets, np],
-        }));
+        updateGs(prev => ({ ...prev, coins: prev.coins - pet.unlockCost, nextId: prev.nextId+1, unlockedPetTypes:[...prev.unlockedPetTypes, pet.id], pets:[...prev.pets, freshPet(`p${prev.nextId}`, pet.id)] }));
         notify(`${pet.emoji} Got ${pet.name}!`);
       };
 
       const buyFood = food => {
         if (gs.unlockedFoods.includes(food.id)) return;
         if (gs.coins < food.unlock) { notify("Not enough coins! 😅"); return; }
-        updateGs(prev => ({ ...prev, coins: prev.coins - food.unlock, unlockedFoods: [...prev.unlockedFoods, food.id] }));
+        updateGs(prev => ({ ...prev, coins: prev.coins - food.unlock, unlockedFoods:[...prev.unlockedFoods, food.id] }));
         notify(`${food.emoji} Unlocked ${food.name}!`);
       };
 
       const buyHouse = h => {
         if (gs.unlockedHouses.includes(h.id)) return;
         if (gs.coins < h.unlock) { notify("Not enough coins! 😅"); return; }
-        updateGs(prev => ({ ...prev, coins: prev.coins - h.unlock, unlockedHouses: [...prev.unlockedHouses, h.id] }));
+        updateGs(prev => ({ ...prev, coins: prev.coins - h.unlock, unlockedHouses:[...prev.unlockedHouses, h.id] }));
         notify(`${h.emoji} Unlocked ${h.name}!`);
       };
 
       const setHouseActive = hid => {
-        updateGs(prev => ({ ...prev, currentHouse: hid }));
+        updateGs(prev => ({ ...prev, currentHouse:hid }));
         notify(`${HOUSES.find(x=>x.id===hid).emoji} Moved in!`);
       };
 
-      if (loading) return (
-        <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"#F9F0FF" }}>
-          <div style={{ fontSize:"4rem", animation:"bounce 1s infinite" }}>🐾</div>
-        </div>
-      );
+      if (loading) return <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"#F9F0FF" }}><div style={{ fontSize:"4rem", animation:"bounce 1s infinite" }}>🐾</div></div>;
 
       const stage = activePet ? getStage(activePet.age) : null;
-
-      let petTransform = "scale(1) rotate(0deg)";
-      if (trickAnim)            petTransform = "scale(1.4) rotate(360deg)";
+      let petTransform = "scale(1)";
+      if (trickAnim)             petTransform = "scale(1.4) rotate(360deg)";
       else if (petAnim==="hold") petTransform = "scale(1.2) translateY(-4px)";
       else if (petAnim==="pet")  petTransform = "translateY(-12px) scale(1.05)";
 
-      const btn = (c1,c2) => ({
-        flex:1, padding:"12px 8px", border:"none", borderRadius:16, cursor:"pointer",
-        fontFamily:"Fredoka One, cursive", fontSize:15, color:"white",
-        background:`linear-gradient(135deg,${c1},${c2})`,
-        boxShadow:`0 4px 14px ${c1}66`,
-      });
+      const btn = (c1,c2) => ({ flex:1, padding:"12px 8px", border:"none", borderRadius:16, cursor:"pointer", fontFamily:"Fredoka One, cursive", fontSize:15, color:"white", background:`linear-gradient(135deg,${c1},${c2})`, boxShadow:`0 4px 14px ${c1}66` });
+
+      const pdPetObjs = gs.pets.filter(p => playdatePets.includes(p.id));
 
       return (
-        <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", fontFamily:"Fredoka One, cursive", background: house.bg }}>
+        <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", background:house.bg }}>
           {toast && <Toast msg={toast.msg} coins={toast.coins} />}
 
           {/* HEADER */}
-          <div style={{
-            display:"flex", alignItems:"center", justifyContent:"space-between",
-            padding:"12px 16px", background:"rgba(255,255,255,0.75)",
-            backdropFilter:"blur(12px)", boxShadow:"0 2px 12px rgba(0,0,0,0.06)",
-            position:"sticky", top:0, zIndex:100,
-          }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 16px", background:"rgba(255,255,255,0.75)", backdropFilter:"blur(12px)", boxShadow:"0 2px 12px rgba(0,0,0,0.06)", position:"sticky", top:0, zIndex:100 }}>
             <div style={{ fontFamily:"Fredoka One, cursive", fontSize:22, color:"#7C3AED" }}>🐾 Didgy</div>
             <CoinBadge amount={gs.coins} />
           </div>
 
-          {/* CONTENT */}
           <div style={{ flex:1, overflowY:"auto", paddingBottom:80 }}>
 
-            {/* HOME */}
-            {tab === "home" && activePet && pd && (
+            {/* ═══ HOME ═══ */}
+            {tab==="home" && activePet && pd && (
               <div style={{ maxWidth:380, margin:"0 auto", padding:"12px 16px" }}>
                 <div style={{ textAlign:"center", color:"#AAA", fontSize:13, marginBottom:6 }}>
-                  {house.emoji} {house.name}
-                  {house.hb > 0 && <span style={{ color:"#22C55E", marginLeft:6 }}>+{house.hb} happiness ✓</span>}
+                  {house.emoji} {house.name}{house.hb>0&&<span style={{ color:"#22C55E", marginLeft:6 }}>+{house.hb} happiness ✓</span>}
                 </div>
-
-                {/* Pet card */}
-                <div style={{
-                  textAlign:"center", padding:"20px 0 16px",
-                  background:"rgba(255,255,255,0.55)", borderRadius:28,
-                  boxShadow:"0 4px 20px rgba(0,0,0,0.06)", marginBottom:14,
-                  border:`2px solid ${pd.color}33`,
-                }}>
-                  <div onClick={handlePet} style={{
-                    fontSize: stage.size, cursor:"pointer", userSelect:"none", display:"inline-block",
-                    transform: petTransform,
-                    transition: trickAnim ? "transform 0.6s cubic-bezier(0.34,1.56,0.64,1)" : "transform 0.4s cubic-bezier(0.34,1.56,0.64,1)",
-                    filter: trickAnim ? `drop-shadow(0 0 24px ${pd.color})` : `drop-shadow(0 4px 8px ${pd.color}66)`,
-                    animation: (!petAnim && !trickAnim) ? "wiggle 3s ease-in-out infinite" : "none",
-                  }}>{pd.emoji}</div>
-                  <div style={{ fontFamily:"Nunito, sans-serif", fontWeight:800, fontSize:20, color:"#444", marginTop:8 }}>
-                    {activePet.name}
-                  </div>
-                  <div style={{ fontSize:12, color:"#999", marginBottom:6 }}>
-                    {stage.name} · Age {Math.floor(activePet.age)}{stage.sparkle ? " ✨" : ""}
-                  </div>
-                  <div style={{
-                    display:"inline-flex", alignItems:"center", gap:6,
-                    background:`${pd.color}22`, borderRadius:99, padding:"3px 12px", fontSize:12, color:pd.color,
-                  }}>🎪 {pd.trick}</div>
+                <div style={{ textAlign:"center", padding:"20px 0 16px", background:"rgba(255,255,255,0.55)", borderRadius:28, boxShadow:"0 4px 20px rgba(0,0,0,0.06)", marginBottom:14, border:`2px solid ${pd.color}33` }}>
+                  <div onClick={handlePet} style={{ fontSize:stage.size, cursor:"pointer", userSelect:"none", display:"inline-block", transform:petTransform, transition:trickAnim?"transform 0.6s cubic-bezier(0.34,1.56,0.64,1)":"transform 0.4s cubic-bezier(0.34,1.56,0.64,1)", filter:trickAnim?`drop-shadow(0 0 24px ${pd.color})`:`drop-shadow(0 4px 8px ${pd.color}66)`, animation:(!petAnim&&!trickAnim)?"wiggle 3s ease-in-out infinite":"none" }}>{pd.emoji}</div>
+                  <div style={{ fontFamily:"Nunito, sans-serif", fontWeight:800, fontSize:20, color:"#444", marginTop:8 }}>{activePet.name}</div>
+                  <div style={{ fontSize:12, color:"#999", marginBottom:6 }}>{stage.name} · Age {Math.floor(activePet.age)}{stage.sparkle?" ✨":""}</div>
+                  <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:`${pd.color}22`, borderRadius:99, padding:"3px 12px", fontSize:12, color:pd.color }}>🎪 {pd.trick}</div>
                 </div>
-
-                {/* Stats */}
-                <div style={{
-                  background:"rgba(255,255,255,0.7)", borderRadius:20,
-                  padding:"14px 16px", marginBottom:14,
-                  boxShadow:"0 2px 12px rgba(0,0,0,0.05)",
-                }}>
+                <div style={{ background:"rgba(255,255,255,0.7)", borderRadius:20, padding:"14px 16px", marginBottom:14, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
                   <StatBar label="Health"    value={activePet.health}    emoji="❤️" color="linear-gradient(90deg,#FF6B6B,#FF8E53)" />
                   <StatBar label="Happiness" value={activePet.happiness} emoji="😊" color="linear-gradient(90deg,#FBBF24,#F59E0B)" />
                   <StatBar label="Hunger"    value={activePet.hunger}    emoji="🍽️" color="linear-gradient(90deg,#6BCB77,#34D399)" />
                 </div>
-
-                {/* Buttons */}
                 <div style={{ display:"flex", gap:10, marginBottom:10 }}>
                   <button onClick={handlePet}  style={btn("#F472B6","#EC4899")}>💕 Pet</button>
                   <button onClick={handleHold} style={btn("#A78BFA","#7C3AED")}>🤗 Hold</button>
                 </div>
                 <div style={{ display:"flex", gap:10, marginBottom:10 }}>
-                  {/* Feed dropdown */}
                   <div ref={feedRef} style={{ flex:1, position:"relative" }}>
-                    <button onClick={() => setFeedOpen(x => !x)} style={btn("#34D399","#10B981")}>
-                      🍽️ Feed {feedOpen ? "▲" : "▼"}
-                    </button>
-                    {feedOpen && (
-                      <div style={{
-                        position:"absolute", bottom:"110%", left:0, right:0,
-                        background:"white", borderRadius:20, padding:8, zIndex:200,
-                        boxShadow:"0 8px 32px rgba(0,0,0,0.15)", border:"1px solid #F0E8FF",
-                      }}>
-                        {(() => {
-                          const uf = UNIQUE_FOODS[pd.uf];
-                          return uf ? (
-                            <button onClick={() => handleFeed("unique",true)} style={{
-                              width:"100%", textAlign:"left", padding:"8px 10px",
-                              background:`${pd.color}15`, border:`1px solid ${pd.color}44`,
-                              borderRadius:14, cursor:"pointer",
-                              display:"flex", alignItems:"center", gap:10, marginBottom:6,
-                            }}>
-                              <span style={{ fontSize:"1.6rem" }}>{uf.emoji}</span>
-                              <div>
-                                <div style={{ fontFamily:"Nunito, sans-serif", fontWeight:700, fontSize:13, color:"#444" }}>{uf.name}</div>
-                                <div style={{ fontSize:11, color:pd.color }}>✨ Unique food — Free</div>
-                              </div>
-                            </button>
-                          ) : null;
-                        })()}
+                    <button onClick={()=>setFeedOpen(x=>!x)} style={btn("#34D399","#10B981")}>🍽️ Feed {feedOpen?"▲":"▼"}</button>
+                    {feedOpen&&(
+                      <div style={{ position:"absolute", bottom:"110%", left:0, right:0, background:"white", borderRadius:20, padding:8, zIndex:200, boxShadow:"0 8px 32px rgba(0,0,0,0.15)", border:"1px solid #F0E8FF" }}>
+                        {(()=>{ const uf=UNIQUE_FOODS[pd.uf]; return uf?<button onClick={()=>handleFeed("unique",true)} style={{ width:"100%", textAlign:"left", padding:"8px 10px", background:`${pd.color}15`, border:`1px solid ${pd.color}44`, borderRadius:14, cursor:"pointer", display:"flex", alignItems:"center", gap:10, marginBottom:6 }}><span style={{ fontSize:"1.6rem" }}>{uf.emoji}</span><div><div style={{ fontFamily:"Nunito, sans-serif", fontWeight:700, fontSize:13, color:"#444" }}>{uf.name}</div><div style={{ fontSize:11, color:pd.color }}>✨ Unique food — Free</div></div></button>:null; })()}
                         <div style={{ borderTop:"1px solid #F0F0F0", margin:"4px 0 6px" }} />
-                        {gs.unlockedFoods.map(fid => {
-                          const f = COMMON_FOODS.find(x => x.id === fid);
-                          return f ? (
-                            <button key={fid} onClick={() => handleFeed(fid,false)} style={{
-                              width:"100%", textAlign:"left", padding:"7px 10px",
-                              border:"none", borderRadius:12, background:"transparent", cursor:"pointer",
-                              display:"flex", alignItems:"center", gap:10,
-                            }}>
-                              <span style={{ fontSize:"1.5rem" }}>{f.emoji}</span>
-                              <div>
-                                <div style={{ fontFamily:"Nunito, sans-serif", fontWeight:700, fontSize:13, color:"#444" }}>{f.name}</div>
-                                <div style={{ fontSize:11, color:"#AAA" }}>{f.price > 0 ? `${f.price} 🪙` : "Free"}</div>
-                              </div>
-                            </button>
-                          ) : null;
-                        })}
+                        {gs.unlockedFoods.map(fid=>{ const f=COMMON_FOODS.find(x=>x.id===fid); return f?<button key={fid} onClick={()=>handleFeed(fid,false)} style={{ width:"100%", textAlign:"left", padding:"7px 10px", border:"none", borderRadius:12, background:"transparent", cursor:"pointer", display:"flex", alignItems:"center", gap:10 }}><span style={{ fontSize:"1.5rem" }}>{f.emoji}</span><div><div style={{ fontFamily:"Nunito, sans-serif", fontWeight:700, fontSize:13, color:"#444" }}>{f.name}</div><div style={{ fontSize:11, color:"#AAA" }}>{f.price>0?`${f.price} 🪙`:"Free"}</div></div></button>:null; })}
                       </div>
                     )}
                   </div>
                   <button onClick={handleTrick} style={btn("#FB923C","#F97316")}>🎪 Trick</button>
                 </div>
-                <button onClick={() => setGameOpen(true)} style={{
-                  width:"100%", padding:"16px 0", border:"none", borderRadius:20, cursor:"pointer",
-                  background:`linear-gradient(135deg,${pd.color},${pd.color}CC)`,
-                  color:"white", fontFamily:"Fredoka One, cursive", fontSize:19,
-                  boxShadow:`0 6px 20px ${pd.color}55`,
-                }}>🎮 Play {pd.gameName}</button>
+                <button onClick={()=>setGameOpen(true)} style={{ width:"100%", padding:"16px 0", border:"none", borderRadius:20, cursor:"pointer", background:`linear-gradient(135deg,${pd.color},${pd.color}CC)`, color:"white", fontFamily:"Fredoka One, cursive", fontSize:19, boxShadow:`0 6px 20px ${pd.color}55` }}>🎮 Play {pd.gameName}</button>
               </div>
             )}
 
-            {/* PETS */}
-            {tab === "pets" && (
+            {/* ═══ PETS ═══ */}
+            {tab==="pets" && (
               <div style={{ maxWidth:380, margin:"0 auto", padding:"12px 16px" }}>
-                <h2 style={{ textAlign:"center", color:"#7C3AED", marginBottom:14, fontSize:20 }}>🐾 My Pets</h2>
-                {gs.pets.map(p => {
-                  const ppd = PETS.find(x => x.id === p.type);
-                  const isActive = p.id === gs.activePetId;
-                  const s = getStage(p.age);
-                  return (
-                    <button key={p.id} onClick={() => { updateGs(prev => ({...prev, activePetId:p.id})); setTab("home"); }} style={{
-                      width:"100%", marginBottom:10, padding:"14px 16px",
-                      border:`3px solid ${isActive ? ppd.color : "transparent"}`,
-                      borderRadius:22, background:"rgba(255,255,255,0.8)", cursor:"pointer", textAlign:"left",
-                      boxShadow: isActive ? `0 4px 20px ${ppd.color}44` : "0 2px 10px rgba(0,0,0,0.06)",
-                    }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                        <span style={{ fontSize:"2.8rem" }}>{ppd.emoji}</span>
-                        <div style={{ flex:1 }}>
-                          <div style={{ fontFamily:"Nunito, sans-serif", fontWeight:800, color:"#333", fontSize:16 }}>{p.name}</div>
-                          <div style={{ color:"#AAA", fontSize:12 }}>{s.name} · Age {Math.floor(p.age)}</div>
-                          <div style={{ display:"flex", gap:6, marginTop:5, flexWrap:"wrap" }}>
-                            {[["❤️",p.health,"#FF6B6B"],["😊",p.happiness,"#F59E0B"],["🍽️",p.hunger,"#22C55E"]].map(([icon,val,col]) => (
-                              <span key={icon} style={{ fontSize:11, background:`${col}22`, color:col, borderRadius:99, padding:"2px 8px" }}>
-                                {icon} {Math.round(val)}
-                              </span>
-                            ))}
-                          </div>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+                  <h2 style={{ color:"#7C3AED", fontSize:20, fontFamily:"Fredoka One, cursive" }}>🐾 My Pets</h2>
+                  {gs.pets.length>=2&&(
+                    <button onClick={()=>{setPlaydateMode(x=>!x);setPlaydatePets([]);}} style={{ padding:"7px 14px", border:"none", borderRadius:99, cursor:"pointer", background:playdateMode?"linear-gradient(135deg,#EF4444,#DC2626)":"linear-gradient(135deg,#F472B6,#EC4899)", color:"white", fontFamily:"Fredoka One, cursive", fontSize:13, boxShadow:playdateMode?"0 3px 12px #EF444444":"0 3px 12px #F472B644" }}>{playdateMode?"✕ Cancel":"🎉 Playdate"}</button>
+                  )}
+                </div>
+
+                {playdateMode&&(
+                  <div style={{ background:"linear-gradient(135deg,#FFF5F5,#FFF0FB)", borderRadius:20, padding:"12px 14px", marginBottom:14, border:"2px solid #FCA5A544" }}>
+                    <p style={{ fontFamily:"Fredoka One, cursive", color:"#EF4444", fontSize:14, marginBottom:8 }}>Select 2 or more pets:</p>
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:10 }}>
+                      {gs.pets.map(p=>{
+                        const ppd=PETS.find(x=>x.id===p.type); const sel=playdatePets.includes(p.id);
+                        return <button key={p.id} onClick={()=>togglePlaydatePet(p.id)} style={{ padding:"6px 12px", border:`2px solid ${sel?ppd.color:"#E5E7EB"}`, borderRadius:99, cursor:"pointer", background:sel?`${ppd.color}22`:"white", fontFamily:"Nunito, sans-serif", fontWeight:700, fontSize:13, color:sel?ppd.color:"#888", display:"flex", alignItems:"center", gap:5 }}>{ppd.emoji} {p.name} {sel?"✓":""}</button>;
+                      })}
+                    </div>
+                    <button onClick={startPlaydate} style={{ width:"100%", padding:"11px 0", border:"none", borderRadius:16, cursor:"pointer", background:playdatePets.length>=2?"linear-gradient(135deg,#EF4444,#DC2626)":"#E5E7EB", color:playdatePets.length>=2?"white":"#AAA", fontFamily:"Fredoka One, cursive", fontSize:16, boxShadow:playdatePets.length>=2?"0 4px 14px #EF444444":"none" }}>🎉 Start Playdate ({playdatePets.length} pets)</button>
+                  </div>
+                )}
+
+                {gs.pets.map(p=>{
+                  const ppd=PETS.find(x=>x.id===p.type); const isActive=p.id===gs.activePetId; const s=getStage(p.age);
+                  return <button key={p.id} onClick={()=>{ if(playdateMode){togglePlaydatePet(p.id);return;} updateGs(prev=>({...prev,activePetId:p.id})); setTab("home"); }} style={{ width:"100%", marginBottom:10, padding:"14px 16px", border:`3px solid ${isActive?ppd.color:"transparent"}`, borderRadius:22, background:"rgba(255,255,255,0.8)", cursor:"pointer", textAlign:"left", boxShadow:isActive?`0 4px 20px ${ppd.color}44`:"0 2px 10px rgba(0,0,0,0.06)" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                      <span style={{ fontSize:"2.8rem" }}>{ppd.emoji}</span>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontFamily:"Nunito, sans-serif", fontWeight:800, color:"#333", fontSize:16 }}>{p.name}</div>
+                        <div style={{ color:"#AAA", fontSize:12 }}>{s.name} · Age {Math.floor(p.age)}</div>
+                        <div style={{ display:"flex", gap:6, marginTop:5, flexWrap:"wrap" }}>
+                          {[["❤️",p.health,"#FF6B6B"],["😊",p.happiness,"#F59E0B"],["🍽️",p.hunger,"#22C55E"]].map(([icon,val,col])=>(
+                            <span key={icon} style={{ fontSize:11, background:`${col}22`, color:col, borderRadius:99, padding:"2px 8px" }}>{icon} {Math.round(val)}</span>
+                          ))}
                         </div>
-                        {isActive && <span style={{ color:ppd.color, fontFamily:"Fredoka One, cursive", fontSize:13 }}>Active ✓</span>}
                       </div>
-                    </button>
-                  );
+                      {isActive&&!playdateMode&&<span style={{ color:ppd.color, fontFamily:"Fredoka One, cursive", fontSize:13 }}>Active ✓</span>}
+                      {playdateMode&&<div style={{ width:26, height:26, borderRadius:99, border:`3px solid ${playdatePets.includes(p.id)?ppd.color:"#DDD"}`, background:playdatePets.includes(p.id)?ppd.color:"white", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, color:"white" }}>{playdatePets.includes(p.id)?"✓":""}</div>}
+                    </div>
+                  </button>;
                 })}
               </div>
             )}
 
-            {/* SHOP */}
-            {tab === "shop" && (
+            {/* ═══ SHOP ═══ */}
+            {tab==="shop" && (
               <div style={{ maxWidth:380, margin:"0 auto", padding:"12px 16px" }}>
-                <h2 style={{ textAlign:"center", color:"#7C3AED", marginBottom:12, fontSize:20 }}>🛍️ Shop</h2>
+                <h2 style={{ textAlign:"center", color:"#7C3AED", marginBottom:12, fontSize:20, fontFamily:"Fredoka One, cursive" }}>🛍️ Shop</h2>
                 <div style={{ display:"flex", gap:8, marginBottom:14, justifyContent:"center" }}>
-                  {[["pets","🐾 Pets"],["food","🍽️ Food"],["houses","🏠 Houses"]].map(([cat,label]) => (
-                    <button key={cat} onClick={() => setShopCat(cat)} style={{
-                      padding:"8px 16px", borderRadius:20, border:"none", cursor:"pointer",
-                      fontFamily:"Fredoka One, cursive", fontSize:14,
-                      background: shopCat===cat ? "linear-gradient(135deg,#8B5CF6,#6D28D9)" : "rgba(255,255,255,0.7)",
-                      color: shopCat===cat ? "white" : "#888",
-                      boxShadow: shopCat===cat ? "0 4px 14px #8B5CF655" : "none",
-                    }}>{label}</button>
+                  {[["pets","🐾 Pets"],["food","🍽️ Food"],["houses","🏠 Houses"]].map(([cat,label])=>(
+                    <button key={cat} onClick={()=>setShopCat(cat)} style={{ padding:"8px 16px", borderRadius:20, border:"none", cursor:"pointer", fontFamily:"Fredoka One, cursive", fontSize:14, background:shopCat===cat?"linear-gradient(135deg,#8B5CF6,#6D28D9)":"rgba(255,255,255,0.7)", color:shopCat===cat?"white":"#888", boxShadow:shopCat===cat?"0 4px 14px #8B5CF655":"none" }}>{label}</button>
                   ))}
                 </div>
 
-                {shopCat === "pets" && PETS.map(pet => {
-                  const owned = gs.unlockedPetTypes.includes(pet.id);
-                  const canAfford = gs.coins >= pet.unlockCost;
-                  return (
-                    <div key={pet.id} style={{
-                      background:"rgba(255,255,255,0.85)", borderRadius:22, padding:14, marginBottom:10,
-                      boxShadow:"0 2px 12px rgba(0,0,0,0.06)",
-                      border:`2px solid ${owned ? "#E5E7EB" : pet.color+"55"}`,
-                      opacity: owned ? 0.75 : 1,
-                    }}>
-                      <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
-                        <span style={{ fontSize:"2.8rem" }}>{pet.emoji}</span>
-                        <div style={{ flex:1 }}>
-                          <div style={{ fontFamily:"Nunito, sans-serif", fontWeight:800, color:"#333", fontSize:15 }}>{pet.name}</div>
-                          <div style={{ color:"#AAA", fontSize:12, marginBottom:4 }}>{pet.desc}</div>
-                          <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
-                            <span style={{ fontSize:11, background:"#FFF0F5", color:"#F472B6", borderRadius:99, padding:"2px 8px" }}>🎪 {pet.trick}</span>
-                            <span style={{ fontSize:11, background:"#F0F9FF", color:"#38BDF8", borderRadius:99, padding:"2px 8px" }}>🎮 {pet.gameName}</span>
-                            <span style={{ fontSize:11, background:"#FEFCE8", color:"#CA8A04", borderRadius:99, padding:"2px 8px" }}>
-                              {UNIQUE_FOODS[pet.uf]?.emoji} {UNIQUE_FOODS[pet.uf]?.name}
-                            </span>
-                          </div>
-                        </div>
-                        <div style={{ flexShrink:0, marginTop:2 }}>
-                          {owned ? (
-                            <span style={{ color:"#22C55E", fontFamily:"Fredoka One, cursive", fontSize:14 }}>✓ Owned</span>
-                          ) : (
-                            <button onClick={() => buyPet(pet)} style={{
-                              padding:"8px 14px", border:"none", borderRadius:16, cursor:"pointer",
-                              background: canAfford ? `linear-gradient(135deg,${pet.color},${pet.color}CC)` : "#E5E7EB",
-                              color: canAfford ? "white" : "#AAA",
-                              fontFamily:"Fredoka One, cursive", fontSize:13,
-                              boxShadow: canAfford ? `0 4px 12px ${pet.color}44` : "none",
-                            }}>{pet.unlockCost} 🪙</button>
-                          )}
+                {shopCat==="pets"&&PETS.map(pet=>{
+                  const owned=gs.unlockedPetTypes.includes(pet.id); const canAfford=gs.coins>=pet.unlockCost;
+                  return <div key={pet.id} style={{ background:"rgba(255,255,255,0.85)", borderRadius:22, padding:14, marginBottom:10, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", border:`2px solid ${owned?"#E5E7EB":pet.color+"55"}`, opacity:owned?0.75:1 }}>
+                    <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
+                      <span style={{ fontSize:"2.8rem" }}>{pet.emoji}</span>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontFamily:"Nunito, sans-serif", fontWeight:800, color:"#333", fontSize:15 }}>{pet.name}</div>
+                        <div style={{ color:"#AAA", fontSize:12, marginBottom:4 }}>{pet.desc}</div>
+                        <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
+                          <span style={{ fontSize:11, background:"#FFF0F5", color:"#F472B6", borderRadius:99, padding:"2px 8px" }}>🎪 {pet.trick}</span>
+                          <span style={{ fontSize:11, background:"#F0F9FF", color:"#38BDF8", borderRadius:99, padding:"2px 8px" }}>🎮 {pet.gameName}</span>
+                          <span style={{ fontSize:11, background:"#FEFCE8", color:"#CA8A04", borderRadius:99, padding:"2px 8px" }}>{UNIQUE_FOODS[pet.uf]?.emoji} {UNIQUE_FOODS[pet.uf]?.name}</span>
                         </div>
                       </div>
+                      <div style={{ flexShrink:0, marginTop:2 }}>
+                        {owned?<span style={{ color:"#22C55E", fontFamily:"Fredoka One, cursive", fontSize:14 }}>✓ Owned</span>
+                        :<button onClick={()=>buyPet(pet)} style={{ padding:"8px 14px", border:"none", borderRadius:16, cursor:"pointer", background:canAfford?`linear-gradient(135deg,${pet.color},${pet.color}CC)`:"#E5E7EB", color:canAfford?"white":"#AAA", fontFamily:"Fredoka One, cursive", fontSize:13, boxShadow:canAfford?`0 4px 12px ${pet.color}44`:"none" }}>{pet.unlockCost} 🪙</button>}
+                      </div>
                     </div>
-                  );
+                  </div>;
                 })}
 
-                {shopCat === "food" && COMMON_FOODS.map(food => {
-                  const owned = gs.unlockedFoods.includes(food.id);
-                  const canAfford = gs.coins >= food.unlock;
-                  return (
-                    <div key={food.id} style={{
-                      background:"rgba(255,255,255,0.85)", borderRadius:22, padding:14, marginBottom:10,
-                      boxShadow:"0 2px 12px rgba(0,0,0,0.06)", opacity: owned ? 0.7 : 1,
-                      border:`2px solid ${owned ? "#E5E7EB" : "#D1FAE5"}`,
-                    }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                        <span style={{ fontSize:"2.2rem" }}>{food.emoji}</span>
-                        <div style={{ flex:1 }}>
-                          <div style={{ fontFamily:"Nunito, sans-serif", fontWeight:800, color:"#333", fontSize:15 }}>{food.name}</div>
-                          <div style={{ color:"#AAA", fontSize:12 }}>{food.desc}</div>
-                          <div style={{ display:"flex", gap:8, marginTop:3 }}>
-                            <span style={{ fontSize:11, color:"#22C55E" }}>+{food.n} hunger</span>
-                            <span style={{ fontSize:11, color:"#F59E0B" }}>+{food.h} happiness</span>
-                            {food.price > 0 && <span style={{ fontSize:11, color:"#F472B6" }}>{food.price}🪙/use</span>}
-                          </div>
+                {shopCat==="food"&&COMMON_FOODS.map(food=>{
+                  const owned=gs.unlockedFoods.includes(food.id); const canAfford=gs.coins>=food.unlock;
+                  return <div key={food.id} style={{ background:"rgba(255,255,255,0.85)", borderRadius:22, padding:14, marginBottom:10, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", opacity:owned?0.7:1, border:`2px solid ${owned?"#E5E7EB":"#D1FAE5"}` }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                      <span style={{ fontSize:"2.2rem" }}>{food.emoji}</span>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontFamily:"Nunito, sans-serif", fontWeight:800, color:"#333", fontSize:15 }}>{food.name}</div>
+                        <div style={{ color:"#AAA", fontSize:12 }}>{food.desc}</div>
+                        <div style={{ display:"flex", gap:8, marginTop:3 }}>
+                          <span style={{ fontSize:11, color:"#22C55E" }}>+{food.n} hunger</span>
+                          <span style={{ fontSize:11, color:"#F59E0B" }}>+{food.h} happiness</span>
+                          {food.price>0&&<span style={{ fontSize:11, color:"#F472B6" }}>{food.price}🪙/use</span>}
                         </div>
-                        {owned ? (
-                          <span style={{ color:"#22C55E", fontFamily:"Fredoka One, cursive", fontSize:13 }}>✓ Free!</span>
-                        ) : (
-                          <button onClick={() => buyFood(food)} style={{
-                            padding:"8px 14px", border:"none", borderRadius:16, cursor:"pointer",
-                            background: canAfford ? "linear-gradient(135deg,#34D399,#10B981)" : "#E5E7EB",
-                            color: canAfford ? "white" : "#AAA",
-                            fontFamily:"Fredoka One, cursive", fontSize:13,
-                            boxShadow: canAfford ? "0 4px 12px #34D39944" : "none",
-                          }}>{food.unlock} 🪙</button>
-                        )}
                       </div>
+                      {owned?<span style={{ color:"#22C55E", fontFamily:"Fredoka One, cursive", fontSize:13 }}>✓ Free!</span>
+                      :<button onClick={()=>buyFood(food)} style={{ padding:"8px 14px", border:"none", borderRadius:16, cursor:"pointer", background:canAfford?"linear-gradient(135deg,#34D399,#10B981)":"#E5E7EB", color:canAfford?"white":"#AAA", fontFamily:"Fredoka One, cursive", fontSize:13, boxShadow:canAfford?"0 4px 12px #34D39944":"none" }}>{food.unlock} 🪙</button>}
                     </div>
-                  );
+                  </div>;
                 })}
 
-                {shopCat === "houses" && HOUSES.map(h => {
-                  const owned = gs.unlockedHouses.includes(h.id);
-                  const current = gs.currentHouse === h.id;
-                  const canAfford = gs.coins >= h.unlock;
-                  return (
-                    <div key={h.id} style={{
-                      borderRadius:22, padding:14, marginBottom:10,
-                      background: current ? h.bg : "rgba(255,255,255,0.85)",
-                      boxShadow: current ? "0 4px 20px rgba(139,92,246,0.2)" : "0 2px 12px rgba(0,0,0,0.06)",
-                      border:`2px solid ${current ? "#8B5CF6" : "#E5E7EB"}`,
-                    }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                        <span style={{ fontSize:"2.4rem" }}>{h.emoji}</span>
-                        <div style={{ flex:1 }}>
-                          <div style={{ fontFamily:"Nunito, sans-serif", fontWeight:800, color:"#333", fontSize:15 }}>{h.name}</div>
-                          <div style={{ color:"#AAA", fontSize:12 }}>{h.desc}</div>
-                          {h.hb > 0 && <div style={{ color:"#22C55E", fontSize:12 }}>+{h.hb} happiness/min ✨</div>}
-                        </div>
-                        <div>
-                          {current ? (
-                            <span style={{ color:"#8B5CF6", fontFamily:"Fredoka One, cursive", fontSize:12 }}>Current 🏡</span>
-                          ) : owned ? (
-                            <button onClick={() => setHouseActive(h.id)} style={{
-                              padding:"8px 14px", border:"none", borderRadius:16, cursor:"pointer",
-                              background:"linear-gradient(135deg,#8B5CF6,#6D28D9)", color:"white",
-                              fontFamily:"Fredoka One, cursive", fontSize:13,
-                              boxShadow:"0 4px 12px #8B5CF644",
-                            }}>Move in</button>
-                          ) : (
-                            <button onClick={() => buyHouse(h)} style={{
-                              padding:"8px 14px", border:"none", borderRadius:16, cursor:"pointer",
-                              background: canAfford ? "linear-gradient(135deg,#FB923C,#F97316)" : "#E5E7EB",
-                              color: canAfford ? "white" : "#AAA",
-                              fontFamily:"Fredoka One, cursive", fontSize:13,
-                              boxShadow: canAfford ? "0 4px 12px #FB923C44" : "none",
-                            }}>{h.unlock} 🪙</button>
-                          )}
-                        </div>
+                {shopCat==="houses"&&HOUSES.map(h=>{
+                  const owned=gs.unlockedHouses.includes(h.id); const current=gs.currentHouse===h.id; const canAfford=gs.coins>=h.unlock;
+                  return <div key={h.id} style={{ borderRadius:22, padding:14, marginBottom:10, background:current?h.bg:"rgba(255,255,255,0.85)", boxShadow:current?"0 4px 20px rgba(139,92,246,0.2)":"0 2px 12px rgba(0,0,0,0.06)", border:`2px solid ${current?"#8B5CF6":"#E5E7EB"}` }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                      <span style={{ fontSize:"2.4rem" }}>{h.emoji}</span>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontFamily:"Nunito, sans-serif", fontWeight:800, color:"#333", fontSize:15 }}>{h.name}</div>
+                        <div style={{ color:"#AAA", fontSize:12 }}>{h.desc}</div>
+                        {h.hb>0&&<div style={{ color:"#22C55E", fontSize:12 }}>+{h.hb} happiness/min ✨</div>}
+                      </div>
+                      <div>
+                        {current?<span style={{ color:"#8B5CF6", fontFamily:"Fredoka One, cursive", fontSize:12 }}>Current 🏡</span>
+                        :owned?<button onClick={()=>setHouseActive(h.id)} style={{ padding:"8px 14px", border:"none", borderRadius:16, cursor:"pointer", background:"linear-gradient(135deg,#8B5CF6,#6D28D9)", color:"white", fontFamily:"Fredoka One, cursive", fontSize:13, boxShadow:"0 4px 12px #8B5CF644" }}>Move in</button>
+                        :<button onClick={()=>buyHouse(h)} style={{ padding:"8px 14px", border:"none", borderRadius:16, cursor:"pointer", background:canAfford?"linear-gradient(135deg,#FB923C,#F97316)":"#E5E7EB", color:canAfford?"white":"#AAA", fontFamily:"Fredoka One, cursive", fontSize:13, boxShadow:canAfford?"0 4px 12px #FB923C44":"none" }}>{h.unlock} 🪙</button>}
                       </div>
                     </div>
-                  );
+                  </div>;
                 })}
               </div>
             )}
           </div>
 
           {/* BOTTOM NAV */}
-          <div style={{
-            position:"fixed", bottom:0, left:0, right:0,
-            background:"rgba(255,255,255,0.9)", backdropFilter:"blur(16px)",
-            borderTop:"1px solid rgba(0,0,0,0.06)",
-            display:"flex", justifyContent:"space-around",
-            padding:`8px 0 env(safe-area-inset-bottom,8px)`, zIndex:200,
-          }}>
-            {[["home","🏠","Home"],["pets","🐾","Pets"],["shop","🛍️","Shop"]].map(([t,icon,label]) => (
-              <button key={t} onClick={() => setTab(t)} style={{
-                display:"flex", flexDirection:"column", alignItems:"center", gap:2,
-                border:"none", cursor:"pointer", padding:"6px 20px", borderRadius:16,
-                background: tab===t ? "#F3E8FF" : "transparent",
-              }}>
+          <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"rgba(255,255,255,0.9)", backdropFilter:"blur(16px)", borderTop:"1px solid rgba(0,0,0,0.06)", display:"flex", justifyContent:"space-around", padding:`8px 0 env(safe-area-inset-bottom,8px)`, zIndex:200 }}>
+            {[["home","🏠","Home"],["pets","🐾","Pets"],["shop","🛍️","Shop"]].map(([t,icon,label])=>(
+              <button key={t} onClick={()=>setTab(t)} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:2, border:"none", cursor:"pointer", padding:"6px 20px", borderRadius:16, background:tab===t?"#F3E8FF":"transparent" }}>
                 <span style={{ fontSize:"1.6rem" }}>{icon}</span>
-                <span style={{ fontFamily:"Fredoka One, cursive", fontSize:12, color: tab===t ? "#7C3AED" : "#BBB" }}>{label}</span>
+                <span style={{ fontFamily:"Fredoka One, cursive", fontSize:12, color:tab===t?"#7C3AED":"#BBB" }}>{label}</span>
               </button>
             ))}
           </div>
 
-          {gameOpen && activePet && (
-            <GameModal pet={activePet} onClose={() => setGameOpen(false)} onEarn={handleGameEarn} />
-          )}
+          {gameOpen&&activePet&&<GameModal pet={activePet} onClose={()=>setGameOpen(false)} onEarn={handleGameEarn} />}
+
+          {playdateOpen&&<PlaydateModal pets={pdPetObjs} onClose={()=>{setPlaydateOpen(false);setPlaydatePets([]);}} onEarn={handlePlaydateEarn} />}
         </div>
       );
     }
